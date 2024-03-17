@@ -1,88 +1,21 @@
-/*
- [The "BSD licence"]
- Copyright (c) 2017 Sasa Coh, Michał Błotniak
- All rights reserved.
+grammar GOatLANG;
 
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions
- are met:
- 1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
- 3. The name of the author may not be used to endorse or promote products
-    derived from this software without specific prior written permission.
-
- THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-/**
- * A Go grammar for ANTLR 4 derived from the Go Language Specification
- * https://golang.org/ref/spec
- *
- */
-grammar Golang;
-
-//SourceFile       = PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" } .
 sourceFile
-    : packageClause TERMINATOR+ importDecl* TERMINATOR+ topLevelDecl*
+    : topLevelDecl*
     ;
 
-//PackageClause  = "package" PackageName .
-//PackageName    = identifier .
-packageClause
-    : 'package' WS IDENTIFIER
-    ;
-
-importDecl
-    : 'import' WS ( importSpec | '(' TERMINATOR ( importSpec )* ')' TERMINATOR )
-    | 'import' WS  importPath
-    ;
-
-importSpec
-    : WS? ( '.' | IDENTIFIER )? importPath
-    ;
-
-importPath
-    : STRING_LIT
-    ;
-
-//TopLevelDecl  = Declaration | FunctionDecl | MethodDecl .
+//TopLevelDecl  = Declaration | FunctionDecl .
 topLevelDecl
     : declaration
     | functionDecl
-    | methodDecl
     ;
 
-//Declaration   = ConstDecl | TypeDecl | VarDecl .
+//Declaration   = VarDecl .
 declaration
-    : constDecl
-    | typeDecl
-    | varDecl
+    : varDecl
     | COMMENT
     ;
 
-
-//ConstDecl      = "const" ( ConstSpec | "(" { ConstSpec ";" } ")" ) .
-constDecl
-    : 'const' ( constSpec | '(' ( constSpec )* ')' )
-    ;
-
-//ConstSpec      = IdentifierList [ [ Type ] "=" ExpressionList ] .
-constSpec
-    : identifierList ( goType? '=' expressionList )?
-    ;
-
-//
 //IdentifierList = identifier { "," identifier } .
 identifierList
     : IDENTIFIER ( ',' IDENTIFIER )*
@@ -92,17 +25,6 @@ identifierList
 expressionList
     : expression ( ',' expression )*
     ;
-
-//TypeDecl     = "type" ( TypeSpec | "(" { TypeSpec ";" } ")" ) .
-typeDecl
-    : 'type' ( typeSpec | '(' ( typeSpec ';' )* ')' )
-    ;
-
-//TypeSpec     = identifier Type .
-typeSpec
-    : IDENTIFIER goType
-    ;
-
 
 // Function declarations
 
@@ -118,20 +40,10 @@ function
     : signature block
     ;
 
-//MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
-//Receiver     = Parameters .
-methodDecl
-    : 'func' receiver IDENTIFIER ( function | signature )
-    ;
-
-receiver
-    : parameters
-    ;
-
-//VarDecl     = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
+//VarDecl     = "var" ( VarSpec ) .
 //VarSpec     = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
 varDecl
-    : 'var' ( varSpec | '(' ( varSpec )* ')' )
+    : 'var' varSpec
     ;
 
 varSpec
@@ -155,26 +67,20 @@ statement
     | simpleStmt
     | goStmt
     | returnStmt
-    | breakStmt
-    | continueStmt
     | gotoStmt
-    | fallthroughStmt
     | block
     | ifStmt
-    | switchStmt
     | selectStmt
     | forStmt
     | deferStmt
     | TERMINATOR
 	;
 
-//SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
+//SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | Assignment .
 simpleStmt
     : sendStmt
     | expressionStmt
-    | incDecStmt
     | assignment
-    | shortVarDecl
     | emptyStmt
     ;
 
@@ -189,11 +95,6 @@ sendStmt
     : expression '<-' expression
     ;
 
-//IncDecStmt = Expression ( "++" | "--" ) .
-incDecStmt
-    : expression ( '++' | '--' )
-    ;
-
 //Assignment = ExpressionList assign_op ExpressionList .
 assignment
     : expressionList assign_op expressionList
@@ -202,12 +103,6 @@ assignment
 //assign_op = [ add_op | mul_op ] "=" .
 assign_op
     : ('+' | '-' | '|' | '^' | '*' | '/' | '%' | '<<' | '>>' | '&' | '&^')? '='
-    ;
-
-
-//ShortVarDecl = IdentifierList ":=" ExpressionList .
-shortVarDecl
-    : identifierList ':=' expressionList
     ;
 
 emptyStmt
@@ -225,24 +120,9 @@ returnStmt
     : 'return' expressionList?
     ;
 
-//BreakStmt = "break" [ Label ] .
-breakStmt
-    : 'break' IDENTIFIER?
-    ;
-
-//ContinueStmt = "continue" [ Label ] .
-continueStmt
-    : 'continue' IDENTIFIER?
-    ;
-
 //GotoStmt = "goto" Label .
 gotoStmt
     : 'goto' IDENTIFIER
-    ;
-
-//FallthroughStmt = "fallthrough" .
-fallthroughStmt
-    : 'fallthrough'
     ;
 
 //DeferStmt = "defer" Expression .
@@ -250,52 +130,10 @@ deferStmt
     : 'defer' expression
     ;
 
-//IfStmt = "if" [ SimpleStmt ";" ] Expression Block [ "else" ( IfStmt | Block ) ] .
+//IfStmt = "if" Expression Block [ "else" ( IfStmt | Block ) ] .
 ifStmt
-    : 'if' (simpleStmt ';')? expression block ( 'else' ( ifStmt | block ) )?
+    : 'if' expression block ( 'else' ( ifStmt | block ) )?
     ;
-
-//SwitchStmt = ExprSwitchStmt | TypeSwitchStmt .
-switchStmt
-    : exprSwitchStmt | typeSwitchStmt
-    ;
-
-//ExprSwitchStmt = "switch" [ SimpleStmt ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
-//ExprCaseClause = ExprSwitchCase ":" StatementList .
-//ExprSwitchCase = "case" ExpressionList | "default" .
-exprSwitchStmt
-    : 'switch' ( simpleStmt ';' )? expression? '{' exprCaseClause* '}'
-    ;
-
-exprCaseClause
-    : exprSwitchCase ':' statementList
-    ;
-
-exprSwitchCase
-    : 'case' expressionList | 'default'
-    ;
-
-//TypeSwitchStmt  = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
-//TypeSwitchGuard = [ identifier ":=" ] PrimaryExpr "." "(" "type" ")" .
-//TypeCaseClause  = TypeSwitchCase ":" StatementList .
-//TypeSwitchCase  = "case" TypeList | "default" .
-//TypeList        = Type { "," Type } .
-typeSwitchStmt
-    : 'switch' ( simpleStmt ';' )? typeSwitchGuard '{' typeCaseClause* '}'
-    ;
-typeSwitchGuard
-    : ( IDENTIFIER ':=' )? primaryExpr '.' '(' 'type' ')'
-    ;
-typeCaseClause
-    : typeSwitchCase ':' statementList
-    ;
-typeSwitchCase
-    : 'case' typeList | 'default'
-    ;
-typeList
-    : goType ( ',' goType )*
-    ;
-
 
 //SelectStmt = "select" "{" { CommClause } "}" .
 //CommClause = CommCase ":" StatementList .
@@ -328,10 +166,9 @@ forClause
     : simpleStmt? ';' expression? ';' simpleStmt?
     ;
 
-
 //RangeClause = [ ExpressionList "=" | IdentifierList ":=" ] "range" Expression .
 rangeClause
-    : (expressionList '=' | identifierList ':=' )? 'range' expression
+    : ( expressionList '=' | identifierList ':=' )? 'range' expression
     ;
 
 //GoStmt = "go" Expression .
@@ -346,25 +183,22 @@ goType
     | '(' goType ')'
     ;
 
-//TypeName  = identifier | QualifiedIdent .
+//TypeName  = identifier .
 typeName
     : IDENTIFIER
-    | qualifiedIdent
     ;
 
-//TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
-//	    SliceType | MapType | ChannelType .
+//TypeLit   = ArrayType | StructType | PointerType | FunctionType |
+//	          SliceType | MapType    | ChannelType .
 typeLit
     : arrayType
     | structType
     | pointerType
     | functionType
-    | interfaceType
     | sliceType
     | mapType
     | channelType
     ;
-
 
 arrayType
     : '[' arrayLength ']' elementType
@@ -384,14 +218,6 @@ pointerType
     : '*' goType
     ;
 
-//InterfaceType      = "interface" "{" { MethodSpec ";" } "}" .
-//MethodSpec         = MethodName Signature | InterfaceTypeName .
-//MethodName         = identifier .
-//InterfaceTypeName  = TypeName .
-interfaceType
-    : 'interface' '{' ( methodSpec )* '}'
-    ;
-
 //SliceType = "[" "]" ElementType .
 sliceType
     : '[' ']' elementType
@@ -407,12 +233,6 @@ mapType
 channelType
     : ( 'chan' | 'chan' '<-' | '<-' 'chan' ) elementType
     ;
-
-methodSpec
-    : IDENTIFIER signature
-    | typeName
-    ;
-
 
 //FunctionType   = "func" Signature .
 //Signature      = Parameters [ Result ] .
@@ -448,15 +268,14 @@ parameterDecl
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Operands
 
-//Operand     = Literal | OperandName | MethodExpr | "(" Expression ")" .
+//Operand     = Literal | OperandName | "(" Expression ")" .
 //Literal     = BasicLit | CompositeLit | FunctionLit .
-//BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
-//OperandName = identifier | QualifiedIdent.
+//BasicLit    = int_lit | float_lit | string_lit .
+//OperandName = identifier .
 
 operand
     : literal
     | operandName
-    | methodExpr
     | '(' expression ')'
     ;
 
@@ -469,19 +288,11 @@ literal
 basicLit
     : INT_LIT
     | FLOAT_LIT
-    | IMAGINARY_LIT
-    | RUNE_LIT
     | STRING_LIT
     ;
 
 operandName
     : IDENTIFIER
-    | qualifiedIdent
-    ;
-
-//QualifiedIdent = PackageName "." identifier .
-qualifiedIdent
-    : IDENTIFIER '.' IDENTIFIER
     ;
 
 //CompositeLit  = LiteralType LiteralValue .
@@ -539,11 +350,7 @@ structType
     ;
 
 fieldDecl
-    : (identifierList goType | anonymousField) STRING_LIT?
-    ;
-
-anonymousField
-    : '*'? typeName
+    : ( identifierList goType ) STRING_LIT
     ;
 
 //FunctionLit = "func" Function .
@@ -598,24 +405,11 @@ arguments
     : '(' ( ( expressionList | goType ( ',' expressionList )? ) '...'? ','? )? ')'
     ;
 
-//MethodExpr    = ReceiverType "." MethodName .
-//ReceiverType  = TypeName | "(" "*" TypeName ")" | "(" ReceiverType ")" .
-methodExpr
-    : receiverType '.' IDENTIFIER
-    ;
-
-receiverType
-    : typeName
-    | '(' '*' typeName ')'
-    | '(' receiverType ')'
-    ;
-
 //Expression = UnaryExpr | Expression binary_op Expression .
 //UnaryExpr  = PrimaryExpr | unary_op UnaryExpr .
 
 expression
     : unaryExpr
-//    | expression BINARY_OP expression
     | expression ('||' | '&&' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '+' | '-' | '|' | '^' | '*' | '/' | '%' | '<<' | '>>' | '&' | '&^') expression
     ;
 
@@ -642,12 +436,8 @@ eos
 // LEXER
 
 COMMENT
-    :   '/*' .*? '*/'
-    | LINE_COMMENT
-    ;
-
-LINE_COMMENT
-    :   '//' ~[\r\n]* [\r\n]
+    : '/*' .*? '*/'
+    | '//' ~[\r\n]* [\r\n]
     ;
 
 // Identifiers
@@ -671,7 +461,6 @@ KEYWORD
     | 'chan'
     | 'else'
     | 'goto'
-    | 'package'
     | 'switch'
     | 'const'
     | 'fallthrough'
