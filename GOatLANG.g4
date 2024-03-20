@@ -448,10 +448,8 @@ IDENTIFIER
 
 // Keywords
 KEYWORD
-    : 'break'
-    | 'default'
+    : 'default'
     | 'func'
-    | 'interface'
     | 'select'
     | 'case'
     | 'defer'
@@ -461,15 +459,9 @@ KEYWORD
     | 'chan'
     | 'else'
     | 'goto'
-    | 'switch'
-    | 'const'
-    | 'fallthrough'
     | 'if'
     | 'range'
-    | 'type'
-    | 'continue'
     | 'for'
-    | 'import'
     | 'return'
     | 'var'
     ;
