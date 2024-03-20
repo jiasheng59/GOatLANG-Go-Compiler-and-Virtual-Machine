@@ -4,16 +4,10 @@ sourceFile
     : topLevelDecl*
     ;
 
-//TopLevelDecl  = Declaration | FunctionDecl .
+//TopLevelDecl  = VarDeclaration | FunctionDecl .
 topLevelDecl
-    : declaration
-    | functionDecl
-    ;
-
-//Declaration   = VarDecl .
-declaration
     : varDecl
-    | COMMENT
+    | functionDecl
     ;
 
 //IdentifierList = identifier { "," identifier } .
@@ -33,7 +27,7 @@ expressionList
 //Function     = Signature FunctionBody .
 //FunctionBody = Block .
 functionDecl
-    : 'func' WS IDENTIFIER ( function | signature ) TERMINATOR
+    : 'func' IDENTIFIER ( function | signature )
     ;
 
 function
@@ -53,7 +47,7 @@ varSpec
 
 //Block = "{" StatementList "}" .
 block
-    : '{' WS statementList WS '}'
+    : '{' statementList '}'
     ;
 
 //StatementList = { Statement ";" } .
@@ -62,7 +56,7 @@ statementList
     ;
 
 statement
-    : declaration
+    : varDecl
     | labeledStmt
     | simpleStmt
     | goStmt
@@ -73,7 +67,6 @@ statement
     | selectStmt
     | forStmt
     | deferStmt
-    | TERMINATOR
 	;
 
 //SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | Assignment .
@@ -189,14 +182,13 @@ typeName
     ;
 
 //TypeLit   = ArrayType | StructType | PointerType | FunctionType |
-//	          SliceType | MapType    | ChannelType .
+//	          SliceType | ChannelType .
 typeLit
     : arrayType
     | structType
     | pointerType
     | functionType
     | sliceType
-    | mapType
     | channelType
     ;
 
@@ -221,12 +213,6 @@ pointerType
 //SliceType = "[" "]" ElementType .
 sliceType
     : '[' ']' elementType
-    ;
-
-//MapType     = "map" "[" KeyType "]" ElementType .
-//KeyType     = Type .
-mapType
-    : 'map' '[' goType ']' elementType
     ;
 
 //ChannelType = ( "chan" | "chan" "<-" | "<-" "chan" ) ElementType .
@@ -297,7 +283,7 @@ operandName
 
 //CompositeLit  = LiteralType LiteralValue .
 //LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
-//                SliceType | MapType | TypeName .
+//                SliceType  | TypeName .
 //LiteralValue  = "{" [ ElementList [ "," ] ] "}" .
 //ElementList   = KeyedElement { "," KeyedElement } .
 //KeyedElement  = [ Key ":" ] Element .
@@ -314,7 +300,6 @@ literalType
     | arrayType
     | '[' '...' ']' elementType
     | sliceType
-    | mapType
     | typeName
     ;
 
@@ -435,15 +420,18 @@ eos
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // LEXER
 
-COMMENT
-    : '/*' .*? '*/'
-    | '//' ~[\r\n]* [\r\n]
+SINGLE_LINE_COMMENT
+    : '//' ~[\r\n]* [\r\n] -> channel(HIDDEN)
+    ;
+
+MULTI_LINE_COMMENT
+    : '/*' .*? '*/' -> channel(HIDDEN)
     ;
 
 // Identifiers
 //identifier = letter { letter | unicode_digit } .
 IDENTIFIER
-    : LETTER ( LETTER | UNICODE_DIGIT )*
+    : [a-zA-Z_] [a-zA-Z0-9_]*
     ;
 
 // Keywords
@@ -454,7 +442,6 @@ KEYWORD
     | 'case'
     | 'defer'
     | 'go'
-    | 'map'
     | 'struct'
     | 'chan'
     | 'else'
@@ -961,9 +948,9 @@ fragment UNICODE_LETTER
 //
 
 WS
-    : [ \t]+
+    : [ \t]+ -> channel(HIDDEN)
     ;
 
 TERMINATOR
-	: [\r\n]+
+	: [\r\n]+ -> channel(HIDDEN)
 	;
