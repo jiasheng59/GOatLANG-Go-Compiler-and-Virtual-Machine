@@ -10,6 +10,7 @@
 //
 // MISC
 // nop (do nothing)
+// exit (terminate the program)
 //
 // LOAD LOCAL VARIABLE
 // (read a value from a local slot, and push it to the operand stack)
@@ -19,11 +20,11 @@
 // (pop a value from the operand stack, and write it to a local slot)
 // store <index> : [..., 64-bit value] -> [...]
 //
-// PUSH
+// PUSH TO OPERAND STACK
 // (push a constant to the operand stack)
 // push <64-bit value> : [...] -> [64-bit value]
 //
-// POP
+// POP FROM OPERAND STACK
 // (pop a value from the operand stack)
 // pop : [..., 64-bit value] -> []
 //
@@ -54,6 +55,8 @@
 // idiv
 // irem
 // ineg
+// iinc
+// idec
 //
 // INTEGER BITWISE
 //
@@ -128,49 +131,56 @@ using u8 = std::uint8_t;
 
 enum class OpCode
 {
+    // MISC
     nop,
-
+    exit,
+    // LOAD LOCAL VARIABLE
     load,
+    // STORE LOCAL VARIABLE
     store,
+    // PUSH TO OPERAND STACK
     push,
+    // POP FROM OPERAND STACK
     pop,
-
+    // LOAD ADDRESS
     aload,
     bload,
-
+    // STORE ADDRESS
     astore,
     bstore,
-
+    // CAST
     i2f,
     f2i,
-
+    // INTEGER ARITHMETIC
     iadd,
     isub,
     imul,
     idiv,
     irem,
     ineg,
-
+    iinc,
+    idec,
+    // INTEGER BITWISE
     ishl,
     ishr,
     ixor,
     ior,
     iand,
     inot,
-
+    // FLOATING POINT ARITHMETIC
     fadd,
     fsub,
     fmul,
     fdiv,
     fneg,
-    //
+    // INTEGER COMPARISON
     ieq,
     ilt,
     igt,
     ine,
     ile,
     ige,
-    //
+    // FLOATING POINT COMPARISON
     feq,
     flt,
     fgt,
@@ -224,7 +234,7 @@ public:
         u64 call_stack_size,
         u64 operand_size);
     void run();
-private:
+public:
     std::vector<Instruction> instructions;
     u64 program_size;
     u64 program_counter;

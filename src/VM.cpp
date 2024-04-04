@@ -1,5 +1,6 @@
 #include <cstring>
 #include <type_traits>
+#include <iostream>
 
 #include "VM.hpp"
 
@@ -149,6 +150,9 @@ void VM::run()
         switch (instruction.opcode) {
             case OpCode::nop:
                 break;
+            case OpCode::exit:
+                next_program_counter = program_size;
+                break;
             case OpCode::load:
                 localload(instruction.index);
                 break;
@@ -197,6 +201,12 @@ void VM::run()
                 break;
             case OpCode::ineg:
                 I_ARITH_UNARY(-);
+                break;
+            case OpCode::iinc:
+                I_ARITH_UNARY(++);
+                break;
+            case OpCode::idec:
+                I_ARITH_UNARY(--);
                 break;
             // INTEGER BITWISE
             case OpCode::ishl:
@@ -307,18 +317,93 @@ void VM::run()
                 break;
             case OpCode::ret:
                 // deallocate the current frame
-                operand_stack_top = frame_pointer;
+                call_stack_top = frame_pointer;
                 // restore the old program counter
                 next_program_counter = pop_call_stack<u64>();
                 // restore the old frame
                 frame_pointer = pop_call_stack<u64>();
                 break;
-            default:
-                // error
-                // -Werror=switch
-                next_program_counter = program_size;
-
         }
         program_counter = next_program_counter;
     }
 }
+
+/*
+int main()
+{
+    // let's write a simple program to calculate the sum of all number from 1 to n
+    int n = 100;
+    #define I Instruction
+    // 0.  push n
+    // 1.  call 3 1 1
+    // 2.  exit
+    // 3.  push 0
+    // 4.  load 0
+    // 5.  ifne 7
+    // 6.  ret
+    // 7.  load 0
+    // 8.  iadd
+    // 9.  load 0
+    // 10. idec
+    // 11. store 0
+    // 12. goto_ 4
+    std::vector<I> instructions{
+        I{
+            .opcode = OpCode::push,
+            .value = bitcast<i64, Word>(n),
+        },
+        I{
+            .opcode = OpCode::call,
+            .index = 3,
+            .nargs = 1,
+            .nvars = 1,
+        },
+        I{
+            .opcode = OpCode::exit,
+        },
+        I{
+            .opcode = OpCode::push,
+            .value = bitcast<i64, Word>(0),
+        },
+        I{
+            .opcode = OpCode::load,
+            .index = 0,
+        },
+        I{
+            .opcode = OpCode::ifne,
+            .index = 7,
+        },
+        I{
+            .opcode = OpCode::ret,
+        },
+        I{
+            .opcode = OpCode::load,
+            .index = 0,
+        },
+        I{
+            .opcode = OpCode::iadd,
+        },
+        I{
+            .opcode = OpCode::load,
+            .index = 0,
+        },
+        I{
+            .opcode = OpCode::idec,
+        },
+        I{
+            .opcode = OpCode::store,
+            .index = 0,
+        },
+        I{
+            .opcode = OpCode::goto_,
+            .index = 4,
+        },
+    };
+    #undef I
+    VM vm{};
+    vm.initialize(instructions, 1024,256, 1024);
+    vm.run();
+    std::cout << "result is: " << read<i64>(vm.operand_stack, 0) << "\n";
+    return 0;
+}
+*/
