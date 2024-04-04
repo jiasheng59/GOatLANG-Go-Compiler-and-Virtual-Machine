@@ -8,10 +8,6 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Java COMPONENTS Runtime REQUIRED)
 find_package(Threads REQUIRED)
 
-if(NOT ANTLR_EXE)
-    set(ANTLR_EXE /usr/local/lib/antlr-4.8-complete.jar)
-endif()
-
 if(NOT ANTLR_LIB)
     set(ANTLR_LIB /usr/local/lib/libantlr4-runtime.a)
 endif()
@@ -58,5 +54,3 @@ add_dependencies(GOatLANG GenerateParser)
 
 target_link_libraries(GOatLANG ${ANTLR_LIB})
 target_link_libraries(GOatLANG Threads::Threads)
-
-
