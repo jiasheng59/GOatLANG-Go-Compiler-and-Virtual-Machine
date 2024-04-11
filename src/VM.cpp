@@ -299,22 +299,26 @@ void VM::run()
                     next_program_counter = instruction.index;
                 }
                 break;
-            case OpCode::call:
-                // store the old frame in the call stack
+            case OpCode::call: {
+                u64 function_index = instruction.index;
+                Function& function = functions[function_index];
+                // store the function index (for GC)
+                push_call_stack(function_index);
+                // store the old frame
                 push_call_stack(frame_pointer);
                 // store the old program counter (of the next instruction)
-                // in the call stack
                 push_call_stack(next_program_counter);
                 // allocate a new frame
                 frame_pointer = call_stack_top;
-                call_stack_top += sizeof(Word) * instruction.nvars;
+                call_stack_top += sizeof(Word) * function.varc;
                 // store arguments (in reverse order)
-                for (u8 i = 1; i <= instruction.nargs; ++i) {
-                    localstore(instruction.nargs - i);
+                for (u16 i = 1; i <= function.argc; ++i) {
+                    localstore(function.argc - i);
                 }
                 // jump to the function
-                next_program_counter = instruction.index;
+                next_program_counter = function.instruction_index;
                 break;
+            }
             case OpCode::ret:
                 // deallocate the current frame
                 call_stack_top = frame_pointer;
@@ -322,6 +326,7 @@ void VM::run()
                 next_program_counter = pop_call_stack<u64>();
                 // restore the old frame
                 frame_pointer = pop_call_stack<u64>();
+                pop_call_stack<u64>(); /* function index */
                 break;
         }
         program_counter = next_program_counter;

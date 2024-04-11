@@ -123,11 +123,13 @@
 
 static_assert(sizeof(double) == 8, "double should be 64-bit");
 
+using i8 = std::int8_t;
+using u8 = std::uint8_t;
+using i16 = std::int16_t;
+using u16 = std::uint16_t;
 using i64 = std::int64_t;
 using u64 = std::uint64_t;
 using f64 = double;
-using i8 = std::int8_t;
-using u8 = std::uint8_t;
 
 enum class OpCode
 {
@@ -215,8 +217,19 @@ struct Instruction
         u64 index;
         Word value;
     };
-    u8 nargs;
-    u8 nvars;
+};
+
+class BitSet
+{
+    // TODO
+};
+
+struct Function
+{
+    u16 argc;
+    u16 varc;
+    u64 instruction_index;
+    BitSet pointer_map;
 };
 
 class VM
@@ -236,6 +249,7 @@ public:
     void run();
 public:
     std::vector<Instruction> instructions;
+    std::vector<Function> functions;
     u64 program_size;
     u64 program_counter;
 
