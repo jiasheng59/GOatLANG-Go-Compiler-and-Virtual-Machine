@@ -3,8 +3,8 @@
 
 #include <vector>
 
-#include "BitSet.hpp"
 #include "Common.hpp"
+#include "BitSet.hpp"
 
 enum class OpCode
 {
@@ -92,13 +92,14 @@ struct Instruction
 
 class Runtime;
 class Thread;
-using NativeFunction = void(*)(Runtime& runtime_ref, Thread& thread_ref);
+using NativeFunction = void(*)(Runtime&, Thread&);
 
 struct Function
 {
     u16 capc;
     u16 argc;
     u16 varc;
+    u64 index;
     BitSet pointer_map;
     std::vector<Instruction> code;
 };

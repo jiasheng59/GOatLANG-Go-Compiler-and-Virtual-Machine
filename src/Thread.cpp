@@ -1,42 +1,60 @@
 #include "Thread.hpp"
 #include "Runtime.hpp"
 
-#define GENERIC_BINARY(T, R, op)      \
-    do {                              \
-        T y = operand_stack.pop<T>(); \
-        T x = operand_stack.pop<T>(); \
-        R r = x op y;                 \
-        operand_stack.push(r);        \
-    } while (false)
-
-#define I_ARITH_BINARY(op) GENERIC_BINARY(i64, i64, op)
-#define I_LOGIC_BINARY(op) GENERIC_BINARY(i64, i64, op)
-#define I_BITWISE_BINARY(op) GENERIC_BINARY(i64, i64, op)
-
-#define F_ARITH_BINARY(op) GENERIC_BINARY(f64, f64, op)
-#define F_LOGIC_BINARY(op) GENERIC_BINARY(f64, i64, op)
-
-#define GENERIC_UNARY(T, R, op)       \
-    do {                              \
-        T x = operand_stack.pop<T>(); \
-        R r = op x;                   \
-        operand_stack.push(r);        \
-    } while (0)
-
-#define I_ARITH_UNARY(op) GENERIC_UNARY(i64, i64, op)
-#define I_LOGIC_UNARY(op) GENERIC_UNARY(i64, i64, op)
-#define I_BITWISE_UNARY(op) GENERIC_UNARY(i64, i64, op)
-
-#define F_ARITH_UNARY(op) GENERIC_UNARY(f64, f64, op)
-
-void Thread::run()
+void Thread::initialize()
 {
-    const Function* current_function = &runtime.function_table[function_index];
-    const std::vector<Instruction>* code = &current_function->code;
+    // initialize a thread.
+    // create, setup necessary information to run the thread
+    // must be called before calling run
+}
 
-    while (program_counter < code->size()) {
-        u64 next_program_counter = program_counter + 1;
-        const Instruction& instruction = (*code)[program_counter];
+void Thread::run(u64 init_function_index)
+{
+    #define GENERIC_BINARY(T, R, op)      \
+        do {                              \
+            T y = operand_stack.pop<T>(); \
+            T x = operand_stack.pop<T>(); \
+            R r = x op y;                 \
+            operand_stack.push(r);        \
+        } while (false)
+
+    #define I_ARITH_BINARY(op) GENERIC_BINARY(i64, i64, op)
+    #define I_LOGIC_BINARY(op) GENERIC_BINARY(i64, i64, op)
+    #define I_BITWISE_BINARY(op) GENERIC_BINARY(i64, i64, op)
+    #define F_ARITH_BINARY(op) GENERIC_BINARY(f64, f64, op)
+    #define F_LOGIC_BINARY(op) GENERIC_BINARY(f64, i64, op)
+
+    #define GENERIC_UNARY(T, R, op)       \
+        do {                              \
+            T x = operand_stack.pop<T>(); \
+            R r = op x;                   \
+            operand_stack.push(r);        \
+        } while (false)
+
+    #define I_ARITH_UNARY(op) GENERIC_UNARY(i64, i64, op)
+    #define I_LOGIC_UNARY(op) GENERIC_UNARY(i64, i64, op)
+    #define I_BITWISE_UNARY(op) GENERIC_UNARY(i64, i64, op)
+    #define F_ARITH_UNARY(op) GENERIC_UNARY(f64, f64, op)
+
+    Heap& heap = runtime.get_heap();
+    std::vector<Function>& function_table = runtime.get_function_table();
+    std::vector<NativeFunction>& native_function_table = runtime.get_native_function_table();
+    instruction_stream.jump_to(function_table[init_function_index]);
+
+    #define INVOKE_FUNCTION(function)                                            \
+        do {                                                                     \
+            u64 program_counter = instruction_stream.get_program_counter();      \
+            call_stack.push_frame(function, program_counter);                    \
+            instruction_stream.jump_to(function);                                \
+            for (u16 i = 1; i <= function.argc; ++i) {                           \
+                Word word = operand_stack.pop<Word>();                           \
+                call_stack.store_local(function.capc + function.argc - i, word); \
+            }                                                                    \
+        } while (false)
+
+    const Instruction* ptr;
+    while ((ptr = instruction_stream.next()) != nullptr) {
+        const Instruction& instruction = *ptr;
         switch (instruction.opcode) {
             case OpCode::nop:
                 break;
@@ -50,20 +68,22 @@ void Thread::run()
                 call_stack.store_local(instruction.index, word);
                 break;
             }
-            case OpCode::push:
+            case OpCode::push: {
                 operand_stack.push(instruction.value);
                 break;
-            case OpCode::pop:
+            }
+            case OpCode::pop: {
                 operand_stack.pop<Word>();
                 break;
+            }
             case OpCode::wload: {
-                u64 address = operand_stack.pop<u64>() + instruction.index;
+                u64 address = operand_stack.pop<u64>() + sizeof(Word) * instruction.index;
                 Word word = heap.load<Word>(address);
                 operand_stack.push(word);
                 break;
             }
             case OpCode::bload: {
-                u64 address = operand_stack.pop<u64>() + instruction.index;
+                u64 address = operand_stack.pop<u64>() + sizeof(Byte) * instruction.index;
                 Byte byte = heap.load<Byte>(address);
                 Word word = bitcast<Byte, Word>(byte);
                 operand_stack.push(word);
@@ -71,14 +91,14 @@ void Thread::run()
             }
             case OpCode::wstore: {
                 Word word = operand_stack.pop<Word>();
-                u64 address = operand_stack.pop<u64>() + instruction.index;
+                u64 address = operand_stack.pop<u64>() + sizeof(Word) * instruction.index;
                 heap.store(address, word);
                 break;
             }
             case OpCode::bstore: {
                 Word word = operand_stack.pop<Word>();
                 Byte byte = bitcast<Word, Byte>(word);
-                u64 address = operand_stack.pop<u64>() + instruction.index;
+                u64 address = operand_stack.pop<u64>() + sizeof(Byte) * instruction.index;
                 heap.store(address, byte);
                 break;
             }
@@ -94,7 +114,6 @@ void Thread::run()
                 operand_stack.push(i);
                 break;
             }
-            // INTEGER ARITHMETIC
             case OpCode::iadd:
                 I_ARITH_BINARY(+);
                 break;
@@ -119,7 +138,6 @@ void Thread::run()
             case OpCode::idec:
                 I_ARITH_UNARY(--);
                 break;
-            // INTEGER BITWISE
             case OpCode::ishl:
                 I_BITWISE_BINARY(<<);
                 break;
@@ -138,7 +156,6 @@ void Thread::run()
             case OpCode::inot:
                 I_BITWISE_UNARY(~);
                 break;
-            // FLOATING POINT ARITHMETIC
             case OpCode::fadd:
                 F_ARITH_BINARY(+);
                 break;
@@ -154,7 +171,6 @@ void Thread::run()
             case OpCode::fneg:
                 F_ARITH_UNARY(-);
                 break;
-            // INTEGER COMPARISON
             case OpCode::ieq:
                 I_LOGIC_BINARY(==);
                 break;
@@ -192,66 +208,54 @@ void Thread::run()
             case OpCode::fge:
                 F_LOGIC_BINARY(>=);
                 break;
-            // LOGICAL NOT
             case OpCode::lnot:
                 I_LOGIC_UNARY(!);
                 break;
-            // CONTROL FLOW
             case OpCode::goto_: {
-                next_program_counter = instruction.index;
+                instruction_stream.set_program_counter(instruction.index);
                 break;
             }
             case OpCode::if_t: {
-                if (operand_stack.pop<i64>()) {
-                    next_program_counter = instruction.index;
+                if (operand_stack.pop<i64>() != 0) {
+                    instruction_stream.set_program_counter(instruction.index);
                 }
                 break;
             }
             case OpCode::if_f: {
-                if (!operand_stack.pop<i64>()) {
-                    next_program_counter = instruction.index;
+                if (operand_stack.pop<i64>() == 0) {
+                    instruction_stream.set_program_counter(instruction.index);
                 }
                 break;
             }
-            // FUNCTION INVOCATION
             case OpCode::invoke_static: {
-                // call_stack.push_frame(function_index, next_program_counter);
-                
-                // function_index = instruction.index;
-                // next_program_counter = 0;
-                // current_function = &function_table[function_index];
-                // code = &current_function->code;
-                
-                // // allocate a new frame
-                // for (u16 i = 1; i <= current_function->argc; ++i) {
-                //     Word word = operand_stack.pop<Word>();
-                //     call_stack.store_local(current_function->argc - i, word);
-                // }
-                // break;
+                const auto& function = function_table[instruction.index];
+                INVOKE_FUNCTION(function);
+                break;
             }
             case OpCode::invoke_dynamic: {
-                // expect an address to a closure
-                // u64 address = operand_stack.pop<u64>();
-                // ClosureHeader closure_header = heap.load<ClosureHeader>(address);
-
-                // function_index = closure_header.function_index;
-                // next_program_counter = 0;
-                // current_function = &function_table[function_index];
-                // code = &current_function->code;
-
-                // call_stack.push_frame(function_index, next_program_counter);
-                // break;
+                u64 address = operand_stack.pop<u64>();
+                ClosureHeader closure_header = heap.load<ClosureHeader>(address);
+                const auto& function = function_table[closure_header.function_index];
+                INVOKE_FUNCTION(function);
+                for (u16 i = 0; i < function.capc; ++i) {
+                    u64 cap_address = heap.load<u64>(address + sizeof(ClosureHeader) + sizeof(u64) * i);
+                    call_stack.store_local(i, cap_address);
+                }
+                break;
             }
             case OpCode::invoke_native: {
                 u64 native_function_index = instruction.index;
-                NativeFunction native_function = runtime.native_function_table[native_function_index];
+                const auto& native_function = native_function_table[native_function_index];
                 native_function(runtime, *this);
                 break;
             }
             case OpCode::ret: {
-                // call_stack.pop_frame()
+                u64 program_counter = call_stack.pop_frame();
+                const auto& frame_data = call_stack.peek_frame_data();
+                const auto& function = function_table[frame_data.function_index];
+                instruction_stream.jump_to(function, program_counter);
+                break;
             }
-            // MEMORY ALLOCATION
             case OpCode::new_: {
                 u64 address = heap.allocate(instruction.index, 1);
                 operand_stack.push(address);
@@ -270,6 +274,5 @@ void Thread::run()
                 break;
             }
         }
-        program_counter = next_program_counter;
     }
 }

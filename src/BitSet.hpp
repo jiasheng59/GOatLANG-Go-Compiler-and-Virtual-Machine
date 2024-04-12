@@ -11,21 +11,17 @@ public:
     using word_type = u64;
     static constexpr u64 bits_per_word = sizeof(word_type) * 8;
 
+    BitSet() = default;
+    BitSet(const BitSet&) = delete;
+    BitSet(BitSet&&) = default;
+
+    BitSet& operator=(const BitSet&) = delete;
+    BitSet& operator=(BitSet&&) = default;
+
     BitSet(u64 nbits)
     {
         u64 nwords = (nbits / bits_per_word) + (nbits % bits_per_word != 0);
         words = std::make_unique<word_type[]>(nwords);
-    }
-
-    BitSet(const BitSet& other) = delete;
-    BitSet& operator=(const BitSet& other) = delete;
-
-    BitSet(BitSet&& other) : words{std::move(other.words)} {}
-
-    BitSet& operator=(BitSet&& other)
-    {
-        words = std::move(other.words);
-        return *this;
     }
 
     void set(u64 index)

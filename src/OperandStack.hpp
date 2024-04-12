@@ -1,11 +1,30 @@
 #ifndef OPERAND_STACK_HPP
 #define OPERAND_STACK_HPP
 
+#include <memory>
+
 #include "Common.hpp"
 
 class OperandStack
 {
 public:
+    OperandStack() = default;
+    OperandStack(const OperandStack&) = delete;
+    OperandStack(OperandStack&&) = default;
+
+    OperandStack& operator=(const OperandStack&) = delete;
+    OperandStack& operator=(OperandStack&&) = default;
+
+    OperandStack(u64 stack_size) :
+        managed_memory{std::make_unique<std::byte[]>(stack_size)},
+        memory{managed_memory.get()},
+        top{0},
+        size{stack_size}
+    {
+    }
+
+    u64 get_size() const { return size; }
+
     template<typename T>
     T pop()
     {
@@ -20,11 +39,13 @@ public:
         static_assert(sizeof(T) == sizeof(Word), "T must have the same size as Word");
         write(memory, top, value);
         top += sizeof(T);
-    };
+    }
 
+private:
+    std::unique_ptr<std::byte[]> managed_memory;
     std::byte* memory;
     u64 size;
     u64 top;
 };
 
-#endif
+#endif /* OPERAND_STACK_HPP */
