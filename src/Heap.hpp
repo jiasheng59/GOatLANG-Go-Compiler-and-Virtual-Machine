@@ -24,6 +24,8 @@ class Heap
     }
 
 public:
+    Heap() {}
+
     static constexpr u64 default_control_bits = 0;
     static constexpr u64 default_foward_pointer = 0;
     static constexpr u64 block_header_size = sizeof(BlockHeader);

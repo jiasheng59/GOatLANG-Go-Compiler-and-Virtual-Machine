@@ -16,12 +16,13 @@ struct Configuration
     u64 heap_size;
     u64 call_stack_size;
     u64 operand_stack_size;
+    u64 init_function_index;
 };
 
 class Runtime
 {
 public:
-    Runtime() = default;
+    Runtime() {};
     Runtime(const Runtime&) = delete;
     Runtime(Runtime&&) = delete;
 
@@ -63,21 +64,19 @@ public:
         return termination_condition;
     }
 
-    void set_init_function_index(u64 new_init_function_index)
+    const Configuration& get_configuration() const
     {
-        init_function_index = new_init_function_index;
+        return configuration;
     }
 
     void start();
 
-    u64 init_function_index = 0;
-
+    Configuration configuration;
     std::vector<Function> function_table;
     std::vector<NativeFunction> native_function_table;
     std::vector<Type> type_table;
 
     Heap heap;
-    Configuration configuration;
 
     std::unordered_set<Thread*> thread_pool;
     std::mutex thread_pool_mutex;
@@ -85,6 +84,47 @@ public:
     // after all spawned thread terminated
     // this behavior is different compared to Go, but easier to implement
     std::condition_variable termination_condition;
+};
+
+class RuntimeBuilder
+{
+public:
+    template<typename T>
+    void function_table(T&& new_function_table)
+    {
+        function_table = std::forward<T>(new_function_table);
+    }
+
+    template<typename T>
+    void native_function_table(T&& new_native_function_table)
+    {
+        native_function_table = std::forward<T>(new_native_function_table);
+    }
+
+    template<typename T>
+    void type_table(T&& new_type_table)
+    {
+        type_table = std::forward<T>(new_type_table);
+    }
+
+    void default_configuration()
+    {
+        configuration.heap_size = 64 * 1024 * 1024; // 64 MB
+        configuration.call_stack_size = 8 * 1024; // 8 KB
+        configuration.operand_stack_size = 1 * 1024; // 1 KB, 128 values
+        configuration.init_function_index = 0;
+    }
+
+    Runtime build()
+    {
+        return Runtime{};
+    }
+private:
+    Configuration configuration;
+
+    std::vector<Function> function_table;
+    std::vector<NativeFunction> native_function_table;
+    std::vector<Type> type_table;
 };
 
 #endif /* RUNTIME_HPP */
