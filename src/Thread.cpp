@@ -1,11 +1,29 @@
+#include <mutex>
+
 #include "Thread.hpp"
 #include "Runtime.hpp"
 
 void Thread::initialize()
 {
-    // initialize a thread.
-    // create, setup necessary information to run the thread
-    // must be called before calling run
+    std::lock_guard lock{runtime.get_thread_pool_mutex()};
+    runtime.get_thread_pool().insert(this);
+}
+
+void Thread::finalize()
+{
+    std::lock_guard lock{runtime.get_thread_pool_mutex()};
+    auto& thread_pool = runtime.get_thread_pool();
+    thread_pool.erase(this);
+    if (thread_pool.empty()) {
+        runtime.get_termination_condition().notify_all();
+    }
+}
+
+void Thread::start(u64 init_function_index)
+{
+    initialize();
+    run(init_function_index);
+    finalize();
 }
 
 void Thread::run(u64 init_function_index)

@@ -20,9 +20,17 @@ public:
     Thread& operator=(const Thread&) = delete;
     Thread& operator=(Thread&&) = default;
 
-    Thread(Runtime& runtime) : runtime{runtime} {}
+    Thread(Runtime& runtime) :
+        runtime{runtime},
+        instruction_stream{},
+        call_stack{runtime.configuration.call_stack_size},
+        operand_stack{runtime.configuration.operand_stack_size}
+    {
+    }
 
     void initialize();
+    void finalize();
+    void start(u64 init_function_index);
     void run(u64 init_function_index);
 
     CallStack& get_call_stack() { return call_stack; }

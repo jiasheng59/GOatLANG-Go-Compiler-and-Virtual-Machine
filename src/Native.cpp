@@ -13,7 +13,8 @@ void new_thread(Runtime& runtime, Thread& thread)
     // I think we should have function specifically for calling function
     // cause calling function is reused quite often ngl
     // spawn a new thread
-    std::jthread thread{};
+    std::jthread platform_thread;
+    Thread thread{runtime};
     // create a new thread instance
     // enque this thread instance
     // and finally run it?
