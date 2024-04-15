@@ -139,7 +139,13 @@ public:
     Type* returnType;
 };
 
-
+Type *IntUnaryType = new UnaryType(new PrimitiveType("int"), new PrimitiveType("int"));
+Type *LogicUnaryType = new UnaryType(new PrimitiveType("bool"), new PrimitiveType("bool"));
+Type *IntBinaryType = new BinaryType(new PrimitiveType("int"), new PrimitiveType("int"), new PrimitiveType("int"));
+Type *FloatBinaryType = new BinaryType(new PrimitiveType("float"), new PrimitiveType("float"), new PrimitiveType("float"));
+Type *IntBoolBinaryType = new BinaryType(new PrimitiveType("int"), new PrimitiveType("int"), new PrimitiveType("bool"));
+Type *FloatBoolBinaryType = new BinaryType(new PrimitiveType("float"), new PrimitiveType("float"), new PrimitiveType("bool"));
+Type *LogicBinaryType = new BinaryType(new PrimitiveType("bool"), new PrimitiveType("bool"), new PrimitiveType("bool"));
 
 class Pair {
 public:
@@ -179,7 +185,7 @@ std::map<void *, Type*> result_environment;
 void annotate_context(void* ctx, Type* t) {
     result_environment[ctx] = t;
 }
-Type* get_type_context(void* ctx) {
+Type* get_type_of_context(void* ctx) {
     return result_environment[ctx];
 }
 
@@ -208,6 +214,7 @@ Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of t
                 break;
             }
             add_type_environment(identifiers[i]->toString(), stringToType(t->getText()), te); // add to type environment the type information of each identifier
+            annotate_context(identifiers[i], stringToType(t->getText()));
             // std::cout << "identifiers[i]'s type is " << get_type(identifiers[i]->toString(), te)->getType() << std::endl;
         }
 
@@ -219,25 +226,56 @@ Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of t
                 break;
             }
             add_type_environment(identifiers[i]->toString(), complex_type, te); // add to type environment the type information of each identifier
+            annotate_context(identifiers[i], complex_type);
             // std::cout << "identifiers[i]'s type is " << get_type(identifiers[i]->toString(), te)->getType() << std::endl;
         }
         type_check(ctx1->expressionList(), te);
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::IdentifierListContext*>(ctx)) {
         // unreachable
+
+
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::FunctionDeclContext*>(ctx)) { // function declaration
         std::string function_name = ctx1->IDENTIFIER()->toString();
-        std::cout << "Function name: " << function_name << std::endl;
-        type_check(ctx1->function(), te);
-        type_check(ctx1->signature(), te);
+        // std::cout << "Function name: " << function_name << std::endl;
+        
+        Pair* extended_te = new Pair(std::map<std::string, Type*>(), te);
+        Type *func_type = type_check(ctx1->function(), extended_te);
+        add_type_environment(function_name, func_type, te);
+
+
+        // auto func = dynamic_cast<FunctionType*>(get_type(function_name, te));
+        // std::cout << "Type of " << function_name << ": " << func->getArguments()[1]->getType() << std::endl;
+
+        type_check(ctx1->signature(), extended_te);
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::FunctionContext*>(ctx)) {
         // std::cout << "Function: " << ctx1->toStringTree() << std::endl;
         // std::cout << "Function Signature: " << ctx1->signature();
         Type *func_type = type_check(ctx1->signature(), te);
+        return func_type;
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::SignatureContext*>(ctx)) {
         std::cout << "Parameters: " << ctx1->parameters()->toStringTree() << std::endl;
         // std::cout << "Result: " << ctx1->result()->toStringTree() << std::endl;
-        return new Type();
-    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::ParameterDeclContext*>(ctx)) { // extend the type environment
+        std::vector<GOatLANGParser::ParameterDeclContext*> parameterDeclContexts = ctx1->parameters()->parameterList()->parameterDecl();
+        std::vector<GOatLANGParser::ParameterDeclContext*> returnContexts = ctx1->result()->parameters()->parameterList()->parameterDecl(); 
+
+        std::vector<Type*> argumentsType;
+        std::vector<Type*> returnType;
+        
+        for (int i = 0; i < parameterDeclContexts.size(); i++) { 
+            std::string parameter_name = parameterDeclContexts[i]->identifierList()->IDENTIFIER()[0]->toString();
+            Type* parameter_type = type_check(parameterDeclContexts[i]->goType(), te);
+            add_type_environment(parameter_name, parameter_type, te);
+            argumentsType.push_back(parameter_type);
+        }
+        for (int i = 0; i < returnContexts.size(); i++) {
+            returnType.push_back(type_check(returnContexts[i]->goType(), te));
+        }
+        return new FunctionType(argumentsType, returnType);
+
+
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::ParameterDeclContext*>(ctx)) {
+
+
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::GoTypeContext*>(ctx)) {
         if (ctx1->typeName() != nullptr) { // primitive type
             return stringToType(ctx1->typeName()->getText());
@@ -293,9 +331,9 @@ int main()
         "var c chan int = make(chan int)\n"
         "return c, 1.0\n"
         "}\n"
-        "func bar(d int) float {\n"
-        "return d + 5.0\n"
-        "}\n"
+        // "func bar(d int) float {\n"
+        // "return d + 5.0\n"
+        // "}\n"
 
         // "func main() {\n"
         // "return 1\n"
@@ -317,8 +355,8 @@ int main()
     type_check(rootContext, type_environment);
 
     // Testing
-    annotate_context(rootContext, new Type());
-    std::cout << "result_environment: " << get_type_context(rootContext)->getType() << std::endl;
+    // annotate_context(rootContext, new Type());
+    // std::cout << "result_environment: " << get_type_of_context(rootContext)->getType() << std::endl;
 
     // std::cout << "Type of tree: " << typeid(tree).name() << std::endl;
     // std::cout << tree->toStringTree(&parser, true) << std::endl;
