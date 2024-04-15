@@ -235,43 +235,49 @@ Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of t
 
 
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::FunctionDeclContext*>(ctx)) { // function declaration
-        std::string function_name = ctx1->IDENTIFIER()->toString();
-        // std::cout << "Function name: " << function_name << std::endl;
         
-        Pair* extended_te = new Pair(std::map<std::string, Type*>(), te);
+        std::cout << "FunctionDecl: " << ctx1->getText() << std::endl;
+        std::string function_name = ctx1->IDENTIFIER()->toString();
+        std::cout << "Function name: " << function_name << std::endl;
+        
+        Pair* extended_te = extend_type_environment(te);
         Type *func_type = type_check(ctx1->function(), extended_te);
         add_type_environment(function_name, func_type, te);
-
 
         // auto func = dynamic_cast<FunctionType*>(get_type(function_name, te));
         // std::cout << "Type of " << function_name << ": " << func->getArguments()[1]->getType() << std::endl;
 
-        type_check(ctx1->signature(), extended_te);
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::FunctionContext*>(ctx)) {
         // std::cout << "Function: " << ctx1->toStringTree() << std::endl;
         // std::cout << "Function Signature: " << ctx1->signature();
         Type *func_type = type_check(ctx1->signature(), te);
+
+        // body of function
+        type_check(ctx1->block(), te);
+
         return func_type;
-    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::SignatureContext*>(ctx)) {
+
+
+
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::SignatureContext*>(ctx)) { // determine function type, determine type for parameters
         std::cout << "Parameters: " << ctx1->parameters()->toStringTree() << std::endl;
         // std::cout << "Result: " << ctx1->result()->toStringTree() << std::endl;
         std::vector<GOatLANGParser::ParameterDeclContext*> parameterDeclContexts = ctx1->parameters()->parameterList()->parameterDecl();
-        std::vector<GOatLANGParser::ParameterDeclContext*> returnContexts = ctx1->result()->parameters()->parameterList()->parameterDecl(); 
-
         std::vector<Type*> argumentsType;
-        std::vector<Type*> returnType;
-        
         for (int i = 0; i < parameterDeclContexts.size(); i++) { 
             std::string parameter_name = parameterDeclContexts[i]->identifierList()->IDENTIFIER()[0]->toString();
             Type* parameter_type = type_check(parameterDeclContexts[i]->goType(), te);
             add_type_environment(parameter_name, parameter_type, te);
             argumentsType.push_back(parameter_type);
         }
-        for (int i = 0; i < returnContexts.size(); i++) {
-            returnType.push_back(type_check(returnContexts[i]->goType(), te));
+        std::vector<Type*> returnType;
+        if (ctx1->result()->parameters() != nullptr) {
+            std::vector<GOatLANGParser::ParameterDeclContext*> returnContexts = ctx1->result()->parameters()->parameterList()->parameterDecl(); 
+            for (int i = 0; i < returnContexts.size(); i++) {
+                returnType.push_back(type_check(returnContexts[i]->goType(), te));
+            }
         }
         return new FunctionType(argumentsType, returnType);
-
 
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::ParameterDeclContext*>(ctx)) {
 
@@ -293,12 +299,121 @@ Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of t
         }
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::ElementTypeContext*>(ctx)) {
         return type_check(ctx1->goType(), te);
-    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::FunctionDeclContext*>(ctx)) {
-        type_check(ctx1->function(), te);
-        type_check(ctx1->signature(), te);
-        std::cout << "FunctionDecl" << ctx1->getText() << std::endl;
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::OperandNameContext*>(ctx)) { // name occurrences
+        // std::cout << "Name occurence: " << ctx1->IDENTIFIER()->toString() << std::endl;
+        annotate_context(ctx1, get_type(ctx1->IDENTIFIER()->toString(), te));
+        return get_type(ctx1->IDENTIFIER()->toString(), te);
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::BlockContext*>(ctx)) {
+        // std::cout << "Block occurence: " << ctx1->toStringTree() << std::endl;
+        Pair* extended_te = extend_type_environment(te);
+        type_check(ctx1->statementList(), extended_te);
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::StatementListContext*>(ctx)) {
+        std::vector<GOatLANGParser::StatementContext *> statements = ctx1->statement();
+        for (int i = 0; i < statements.size(); i++) {
+            type_check(statements[i], te);
+        }
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::StatementContext*>(ctx)) {
+        // std::cout << "statement: " << ctx1->toStringTree() << std::endl;
+        type_check(ctx1->varDecl(), te);
+        // type_check(ctx1->labeledStmt(), te);
+        type_check(ctx1->simpleStmt(), te);
+        // type_check(ctx1->goStmt(), te);
+        type_check(ctx1->returnStmt(), te);
+        type_check(ctx1->gotoStmt(), te);
+        type_check(ctx1->block(), te);
+        type_check(ctx1->ifStmt(), te);
+        type_check(ctx1->selectStmt(), te);
+        type_check(ctx1->forStmt(), te);
+        type_check(ctx1->deferStmt(), te);
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::SimpleStmtContext*>(ctx)) {
+        // type_check(ctx1->sendStmt(), te);
+        type_check(ctx1->expressionStmt(), te);
+        // type_check(ctx1->assignment(), te);
+        // type_check(ctx1->emptyStmt(), te);
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::ExpressionStmtContext*>(ctx)) {
+        type_check(ctx1->expression(), te);
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::ExpressionContext*>(ctx)) {
+        type_check(ctx1->unaryExpr(), te);
+        std::vector<GOatLANGParser::ExpressionContext *> expressions = ctx1->expression();
+        for (int i = 0; i < expressions.size(); i++) {
+            type_check(expressions[i], te);
+        }
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::UnaryExprContext*>(ctx)) {
+        Type* expressionType = nullptr;
+        if (ctx1->unaryExpr() != nullptr) {
+            expressionType = type_check(ctx1->unaryExpr(), te);
+            annotate_context(ctx, expressionType);
+            return expressionType;
+        }
+        expressionType = type_check(ctx1->primaryExpr(), te);
+        annotate_context(ctx, expressionType);
+        return expressionType;
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::PrimaryExprContext*>(ctx)) {
+        Type* expressionType = type_check(ctx1->operand(), te);
+        annotate_context(ctx, expressionType);
+        return expressionType;
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::OperandContext*>(ctx)) {
+        Type *t = nullptr;
+        if (ctx1->literal() != nullptr) {
+            t = type_check(ctx1->literal(), te);
+            annotate_context(ctx, t);
+            return t;
+        } else if (ctx1->operandName() != nullptr) {
+            t = type_check(ctx1->operandName(), te);
+            annotate_context(ctx, t);
+            return t;
+        } else if (ctx1->expression() != nullptr) {
+            t = type_check(ctx1->expression(), te);
+            annotate_context(ctx, t);
+            return t;
+        }
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::LiteralContext*>(ctx)) {
+        Type *t = nullptr;
+        if (ctx1->basicLit() != nullptr) {
+            t = type_check(ctx1->basicLit(), te);
+            annotate_context(ctx, t);
+            return t;
+        } else if (ctx1->compositeLit() != nullptr) {
+            t = type_check(ctx1->compositeLit(), te);
+            annotate_context(ctx, t);
+            return t;
+        } else if (ctx1->functionLit() != nullptr) {
+            t = type_check(ctx1->functionLit(), te);
+            annotate_context(ctx, t);
+            return t;
+        }
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::BasicLitContext*>(ctx)) {
+        if (ctx1->INT_LIT() != nullptr) {
+            std::cout << "BasicLit: " << ctx1->INT_LIT()->toString() << std::endl;
+            Type *t = new PrimitiveType("int");
+            annotate_context(ctx, t);
+            return t;
+        } else if (ctx1->FLOAT_LIT() != nullptr) {
+            std::cout << "BasicLit: " << ctx1->FLOAT_LIT()->toString() << std::endl;
+            Type *t = new PrimitiveType("float");
+            annotate_context(ctx, t);
+            return t;
+        } else if (ctx1->STRING_LIT() != nullptr) {
+            Type *t = new PrimitiveType("string");
+            annotate_context(ctx, t);
+            return t;
+        }
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::CompositeLitContext*>(ctx)) {
+        Type *t = type_check(ctx1->literalType(), te);
+        annotate_context(ctx, t);
+        return t;
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::ArrayTypeContext*>(ctx)) {
+        Type *t = type_check(ctx1->elementType()->goType(), te);
+        Type *t1 = new ArrayType(t);
+        annotate_context(ctx, t);
+        return t1;
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::FunctionLitContext*>(ctx)) {
+        Pair* extended_te = extend_type_environment(te);
+        Type *func_type = type_check(ctx1->function(), extended_te);
+        annotate_context(ctx, func_type);
+        return func_type;
     }
-    
+
     return nullptr;
 }
 
@@ -327,13 +442,15 @@ int main()
 
         "var a [2]string\n"
         "var b chan int = make(chan int)\n"
-        "func foo(a int, b bool) (chan int, float) {\n"
-        "var c chan int = make(chan int)\n"
-        "return c, 1.0\n"
-        "}\n"
-        // "func bar(d int) float {\n"
-        // "return d + 5.0\n"
+        // "func foo(a int, b bool) (chan int, float) {\n"
+        // "var c chan int = make(chan int)\n"
+        // "a + 1;\n"
+        // "return c, 1.0\n"
         // "}\n"
+        "func bar(d int) float {\n"
+        "var e[2]int"
+        "return d + 5.0\n"
+        "}\n"
 
         // "func main() {\n"
         // "return 1\n"
