@@ -40,23 +40,23 @@ public:
 
 class FunctionType : public Type {
 public:
-    FunctionType(std::vector<Type> args, std::vector<Type> retType)
+    FunctionType(std::vector<Type*> args, std::vector<Type*> retType)
         : arguments(std::move(args)), returnType(std::move(retType)) {}
 
     std::string getType() const override {
         return "Function Type";
     }
 
-    std::vector<Type> getArguments() const {
+    std::vector<Type*> getArguments() const {
         return arguments;
     }
 
-    std::vector<Type> getReturnType() const {
+    std::vector<Type*> getReturnType() const {
         return returnType;
     }
 
-    std::vector<Type> arguments;
-    std::vector<Type> returnType;
+    std::vector<Type*> arguments;
+    std::vector<Type*> returnType;
 };
 
 class ArrayType : public Type {
@@ -93,6 +93,54 @@ public:
     Type* elementType;
 };
 
+class UnaryType : public Type {
+public:
+    UnaryType(Type* arg, Type* retType)
+        : argument(std::move(arg)), returnType(std::move(retType)) {}
+
+    std::string getType() const override {
+        return "Unary Type";
+    }
+
+    Type* getArgument() const {
+        return argument;
+    }
+
+    Type* getReturnType() const {
+        return returnType;
+    }
+
+    Type* argument;
+    Type* returnType;
+};
+
+class BinaryType : public Type {
+public:
+    BinaryType(Type *first_arg, Type *second_arg, Type *retType) 
+        : first_argument(std::move(first_arg)), second_argument(std::move(second_arg)), returnType(std::move(retType)) {}
+
+    std::string getType() const override {
+        return "Binary Type";
+    }
+
+    Type* getFirstArgument() const {
+        return first_argument;
+    }
+    Type* getSecondArgument() const {
+        return second_argument;
+    }
+
+    Type* getReturnType() const {
+        return returnType;
+    }
+
+    Type* first_argument;
+    Type* second_argument;
+    Type* returnType;
+};
+
+
+
 class Pair {
 public:
     Pair(std::map<std::string, Type*> h, Pair* t) {
@@ -127,6 +175,13 @@ Type* get_type(std::string name, Pair *te) {
     return nullptr;
 }
 
+std::map<void *, Type*> result_environment;
+void annotate_context(void* ctx, Type* t) {
+    result_environment[ctx] = t;
+}
+Type* get_type_context(void* ctx) {
+    return result_environment[ctx];
+}
 
 Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of the ctx
     if (auto ctx1 = dynamic_cast<GOatLANGParser::SourceFileContext *>(ctx)) {
@@ -169,9 +224,26 @@ Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of t
         type_check(ctx1->expressionList(), te);
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::IdentifierListContext*>(ctx)) {
         // unreachable
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::FunctionDeclContext*>(ctx)) { // function declaration
+        std::string function_name = ctx1->IDENTIFIER()->toString();
+        std::cout << "Function name: " << function_name << std::endl;
+        type_check(ctx1->function(), te);
+        type_check(ctx1->signature(), te);
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::FunctionContext*>(ctx)) {
+        // std::cout << "Function: " << ctx1->toStringTree() << std::endl;
+        // std::cout << "Function Signature: " << ctx1->signature();
+        Type *func_type = type_check(ctx1->signature(), te);
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::SignatureContext*>(ctx)) {
+        std::cout << "Parameters: " << ctx1->parameters()->toStringTree() << std::endl;
+        // std::cout << "Result: " << ctx1->result()->toStringTree() << std::endl;
+        return new Type();
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::ParameterDeclContext*>(ctx)) { // extend the type environment
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::GoTypeContext*>(ctx)) {
-        if (ctx1->typeName() != nullptr) {
+        if (ctx1->typeName() != nullptr) { // primitive type
             return stringToType(ctx1->typeName()->getText());
+        } else if (ctx1->typeLit() != nullptr) { // complex type
+            Type *complex_type = type_check(ctx1->typeLit(), te);
+            return complex_type;
         }
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::TypeLitContext*>(ctx)) {
         if (ctx1->arrayType() != nullptr) {
@@ -217,8 +289,16 @@ int main()
 
         "var a [2]string\n"
         "var b chan int = make(chan int)\n"
-        "func main() {\n"
-        "return 1\n"
+        "func foo(a int, b bool) (chan int, float) {\n"
+        "var c chan int = make(chan int)\n"
+        "return c, 1.0\n"
+        "}\n"
+        "func bar(d int) float {\n"
+        "return d + 5.0\n"
+        "}\n"
+
+        // "func main() {\n"
+        // "return 1\n"
         "}\n";
 
     antlr4::ANTLRInputStream input(prog);
@@ -235,6 +315,10 @@ int main()
     
     type_environment = new Pair(std::map<std::string, Type*>(), type_environment);
     type_check(rootContext, type_environment);
+
+    // Testing
+    annotate_context(rootContext, new Type());
+    std::cout << "result_environment: " << get_type_context(rootContext)->getType() << std::endl;
 
     // std::cout << "Type of tree: " << typeid(tree).name() << std::endl;
     // std::cout << tree->toStringTree(&parser, true) << std::endl;
