@@ -1,4 +1,0 @@
-/Users/jason1/Downloads/Go-Compiler-and-Virtual-Machine/cmake-build-debug/CMakeFiles/GenerateParser.dir
-/Users/jason1/Downloads/Go-Compiler-and-Virtual-Machine/cmake-build-debug/CMakeFiles/GOatLANG.dir
-/Users/jason1/Downloads/Go-Compiler-and-Virtual-Machine/cmake-build-debug/CMakeFiles/edit_cache.dir
-/Users/jason1/Downloads/Go-Compiler-and-Virtual-Machine/cmake-build-debug/CMakeFiles/rebuild_cache.dir
