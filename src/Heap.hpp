@@ -24,7 +24,7 @@ class Heap
     }
 
 public:
-    Heap() {}
+    Heap() = default;
 
     static constexpr u64 default_control_bits = 0;
     static constexpr u64 default_foward_pointer = 0;

@@ -10,6 +10,7 @@
 #include "Code.hpp"
 #include "Heap.hpp"
 #include "Thread.hpp"
+#include "ChannelManager.hpp"
 
 struct Configuration
 {
@@ -22,10 +23,11 @@ struct Configuration
 class Runtime
 {
 public:
+    static constexpr u64 channel_type_index = 0;
+
     Runtime() {};
     Runtime(const Runtime&) = delete;
     Runtime(Runtime&&) = delete;
-
     Runtime& operator=(const Runtime&) = delete;
     Runtime& operator=(Runtime&&) = delete;
 
@@ -69,6 +71,11 @@ public:
         return configuration;
     }
 
+    ChannelManager& get_channel_manager()
+    {
+        return channel_manager;
+    }
+
     void start();
 
     Configuration configuration;
@@ -77,6 +84,7 @@ public:
     std::vector<Type> type_table;
 
     Heap heap;
+    ChannelManager channel_manager;
 
     std::unordered_set<Thread*> thread_pool;
     std::mutex thread_pool_mutex;

@@ -19,14 +19,14 @@ void Thread::finalize()
     }
 }
 
-void Thread::start(u64 init_function_index)
+void Thread::start()
 {
     initialize();
-    run(init_function_index);
+    run();
     finalize();
 }
 
-void Thread::run(u64 init_function_index)
+void Thread::run()
 {
     #define GENERIC_BINARY(T, R, op)      \
         do {                              \
@@ -57,7 +57,6 @@ void Thread::run(u64 init_function_index)
     Heap& heap = runtime.get_heap();
     std::vector<Function>& function_table = runtime.get_function_table();
     std::vector<NativeFunction>& native_function_table = runtime.get_native_function_table();
-    instruction_stream.jump_to(function_table[init_function_index]);
 
     #define INVOKE_FUNCTION(function)                                            \
         do {                                                                     \
