@@ -1,6 +1,6 @@
 # do not commit local configuration
 .vscode
-
+.idea
 build/
 generated/
 cmake-build-debug/
