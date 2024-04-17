@@ -203,11 +203,11 @@ Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of t
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::VarDeclContext*>(ctx)) {
         type_check(ctx1->varSpec(), te);
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::VarSpecContext*>(ctx)) {
-        // std::cout << "VarSpec" << ctx1->toStringTree() << std::endl;
+        std::cout << "VarSpec" << ctx1->toStringTree() << std::endl;
         std::vector<antlr4::tree::TerminalNode *> identifiers = ctx1->identifierList()->IDENTIFIER();
         GOatLANGParser::TypeNameContext* t = ctx1->goType()->typeName(); // primitive type
         GOatLANGParser::TypeLitContext* typeLit = ctx1->goType()->typeLit(); // complex type
-
+       
         // Primitive type (TypeNameContext)
         for (int i = 0; i < identifiers.size(); i++) {
             if (t == nullptr) {
@@ -260,22 +260,27 @@ Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of t
 
 
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::SignatureContext*>(ctx)) { // determine function type, determine type for parameters
-        std::cout << "Parameters: " << ctx1->parameters()->toStringTree() << std::endl;
+        // std::cout << "Parameters: " << ctx1->parameters()->toStringTree() << std::endl;
         // std::cout << "Result: " << ctx1->result()->toStringTree() << std::endl;
-        std::vector<GOatLANGParser::ParameterDeclContext*> parameterDeclContexts = ctx1->parameters()->parameterList()->parameterDecl();
         std::vector<Type*> argumentsType;
-        for (int i = 0; i < parameterDeclContexts.size(); i++) { 
-            std::string parameter_name = parameterDeclContexts[i]->identifierList()->IDENTIFIER()[0]->toString();
-            Type* parameter_type = type_check(parameterDeclContexts[i]->goType(), te);
-            add_type_environment(parameter_name, parameter_type, te);
-            argumentsType.push_back(parameter_type);
+        if (ctx1->parameters() != nullptr && ctx1->parameters()->parameterList() != nullptr) {
+            std::vector<GOatLANGParser::ParameterDeclContext*> parameterDeclContexts = ctx1->parameters()->parameterList()->parameterDecl();
+            for (int i = 0; i < parameterDeclContexts.size(); i++) { 
+                std::string parameter_name = parameterDeclContexts[i]->identifierList()->IDENTIFIER()[0]->toString();
+                Type* parameter_type = type_check(parameterDeclContexts[i]->goType(), te);
+                add_type_environment(parameter_name, parameter_type, te);
+                argumentsType.push_back(parameter_type);
+            }
         }
         std::vector<Type*> returnType;
-        if (ctx1->result()->parameters() != nullptr) {
+        if (ctx1->result() != nullptr && ctx1->result()->parameters() != nullptr) {
             std::vector<GOatLANGParser::ParameterDeclContext*> returnContexts = ctx1->result()->parameters()->parameterList()->parameterDecl(); 
             for (int i = 0; i < returnContexts.size(); i++) {
                 returnType.push_back(type_check(returnContexts[i]->goType(), te));
             }
+        }
+        if (returnType.size() == 0) {
+            returnType.push_back(new Type()); // treated as return void
         }
         return new FunctionType(argumentsType, returnType);
 
@@ -304,7 +309,7 @@ Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of t
         annotate_context(ctx1, get_type(ctx1->IDENTIFIER()->toString(), te));
         return get_type(ctx1->IDENTIFIER()->toString(), te);
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::BlockContext*>(ctx)) {
-        // std::cout << "Block occurence: " << ctx1->toStringTree() << std::endl;
+        std::cout << "Block occurence: " << ctx1->toStringTree() << std::endl;
         Pair* extended_te = extend_type_environment(te);
         type_check(ctx1->statementList(), extended_te);
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::StatementListContext*>(ctx)) {
@@ -330,13 +335,27 @@ Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of t
         type_check(ctx1->expressionStmt(), te);
         // type_check(ctx1->assignment(), te);
         // type_check(ctx1->emptyStmt(), te);
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::IfStmtContext*>(ctx)) {
+        // std::cout << "IfStmt: Block: " << ctx1->block().size() << std::endl;
+        // std::cout << "IfStmt: Expression: " << ctx1->expression()->toStringTree() << std::endl;
+        for (int i = 0; i < ctx1->block().size(); i++) {
+            type_check(ctx1->block()[i], te);
+        }
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::ExpressionStmtContext*>(ctx)) {
-        type_check(ctx1->expression(), te);
+        return type_check(ctx1->expression(), te);
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::ExpressionContext*>(ctx)) {
-        type_check(ctx1->unaryExpr(), te);
-        std::vector<GOatLANGParser::ExpressionContext *> expressions = ctx1->expression();
-        for (int i = 0; i < expressions.size(); i++) {
-            type_check(expressions[i], te);
+        if (ctx1->unaryExpr() != nullptr) {
+            Type *t = type_check(ctx1->unaryExpr(), te);
+            annotate_context(ctx, t);
+            return t;
+        } else {
+            std::cout << "Expression:" << std::endl;
+            std::vector<GOatLANGParser::ExpressionContext *> expressions = ctx1->expression();
+            Type *t1 = type_check(expressions[0], te);
+            Type *t2 = type_check(expressions[1], te);
+            // if (t)
+            annotate_context(ctx1, t1);
+            return t1;
         }
     } else if (auto ctx1 = dynamic_cast<GOatLANGParser::UnaryExprContext*>(ctx)) {
         Type* expressionType = nullptr;
@@ -412,8 +431,43 @@ Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of t
         Type *func_type = type_check(ctx1->function(), extended_te);
         annotate_context(ctx, func_type);
         return func_type;
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::SelectStmtContext*>(ctx)) {
+        std::cout << "Select statement: " << ctx1->toString() << std::endl;
+        std::vector<GOatLANGParser::CommClauseContext *> commClauses = ctx1->commClause();
+        Pair* extended_te = extend_type_environment(te);
+        for (int i = 0; i < commClauses.size(); i++) {
+            type_check(commClauses[i], extended_te);
+        }
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::CommClauseContext*>(ctx)) {
+        // std::cout << "CommClause: " << ctx1->toString() << std::endl;
+        type_check(ctx1->commCase(), te);
+        type_check(ctx1->statementList(), te);
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::CommCaseContext*>(ctx)) {
+        // std::cout << "CommCase: " << ctx1->toString() << std::endl;
+        type_check(ctx1->sendStmt(), te);
+        type_check(ctx1->recvStmt(), te);
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::SendStmtContext*>(ctx)) {
+        std::vector<GOatLANGParser::ExpressionContext *> expressions = ctx1->expression();
+        Type * t;
+        for (int i = 0; i < expressions.size(); i++) {
+            t = type_check(expressions[i], te);
+        }
+        annotate_context(ctx, t);
+        return t;
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::RecvStmtContext*>(ctx)) {
+        // std::cout << "Recv statement: " << ctx1->toString() << std::endl;
+        Type* t = type_check(ctx1->expression(), te);
+        if (ctx1->identifierList() != nullptr) { // := 
+            std::string var_name = ctx1->identifierList()->IDENTIFIER()[0]->toString();
+            add_type_environment(var_name, t, te);
+            annotate_context(ctx, t);
+            return t;
+        }
+        annotate_context(ctx, t);
+        return t;
+    } else if (auto ctx1 = dynamic_cast<GOatLANGParser::ReturnStmtContext *>(ctx)) {
+        return type_check(ctx1->expressionList(), te);
     }
-
     return nullptr;
 }
 
@@ -434,27 +488,43 @@ int main()
         // "   close(done)\n"
         // "}";
 
-        // "var a, b int = 1, 2\n"
+        "var a, b int = 1, 2\n"
+        "var c int = a + b;\n";
         // "var c int = 3\n"
         // "func main() {\n"
         // "return 1\n"
         // "}\n";
 
-        "var a [2]string\n"
-        "var b chan int = make(chan int)\n"
+        // "var a [2]string\n"
+        // "var b chan int = make(chan int)\n"
         // "func foo(a int, b bool) (chan int, float) {\n"
         // "var c chan int = make(chan int)\n"
         // "a + 1;\n"
         // "return c, 1.0\n"
         // "}\n"
-        "func bar(d int) float {\n"
-        "var e[2]int"
-        "return d + 5.0\n"
-        "}\n"
-
+        // "func bar(d int) float {\n"
+        // "var e[2]int"
+        // "return d + 5.0\n"
+        // "}\n"
+        // "func goo(f float) {\n"
+        // "if (true) {\n"
+        // "return 1;\n"
+        // "} else {\n"
+        // "return 2;\n"
+        // "}\n"
+        // "}\n"
+        // "func chanfoo() {\n"
+        //     "var c chan int = make(chan int, 1)\n"
+        //     "select {\n"
+        //         "case c <- 1:\n"
+        //             "return 1;\n"
+        //         "case <-c:\n"
+        //             "return 2;\n"
+        //     "}\n"
+        // "}\n";
         // "func main() {\n"
         // "return 1\n"
-        "}\n";
+        // "}\n";
 
     antlr4::ANTLRInputStream input(prog);
     GOatLANGLexer lexer{&input};
