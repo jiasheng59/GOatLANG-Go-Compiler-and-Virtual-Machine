@@ -8,15 +8,12 @@ int main()
 {
     const char prog[] =
         "func main() {\n"
-        "   Println(\"Hello, World!\")"
-        "   var done chan int = make(chan struct{})\n"
-        "   go func() {\n"
-        "       select {\n"
-        "       case <-done:\n"
-        "           return\n"
-        "       }\n"
-        "   }()\n"
-        "   close(done)\n"
+        "    var done chan int = make(chan struct{})\n"
+        "    go func(n int) {\n"
+        "        var x int = n * 2 + 3 / 5 % 9\n"
+        "        println(x)\n"
+        "    }(1)\n"
+        "    close(done)\n"
         "}";
     antlr4::ANTLRInputStream input(prog);
     GOatLANGLexer lexer{&input};
