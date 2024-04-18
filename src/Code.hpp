@@ -111,9 +111,10 @@ struct ClosureHeader
 
 struct Type
 {
-    BitSet pointer_map;
     u64 memc; // number of elements
     u64 size; // total size
+    u64 index;
+    BitSet pointer_map;
 };
 
 #endif /* CODE_HPP */

@@ -25,7 +25,7 @@ class Runtime
 public:
     static constexpr u64 channel_type_index = 0;
 
-    Runtime() {};
+    Runtime() = default;
     Runtime(const Runtime&) = delete;
     Runtime(Runtime&&) = delete;
     Runtime& operator=(const Runtime&) = delete;
