@@ -148,158 +148,158 @@ void VM::run()
         u64 next_program_counter = program_counter + 1;
         Instruction& instruction = instructions[program_counter];
         switch (instruction.opcode) {
-            case OpCode::nop:
+            case Opcode::nop:
                 break;
-            case OpCode::exit:
+            case Opcode::exit:
                 next_program_counter = program_size;
                 break;
-            case OpCode::load:
+            case Opcode::load:
                 localload(instruction.index);
                 break;
-            case OpCode::store:
+            case Opcode::store:
                 localstore(instruction.index);
                 break;
-            case OpCode::push:
+            case Opcode::push:
                 push(instruction.value);
                 break;
-            case OpCode::pop:
+            case Opcode::pop:
                 pop<Word>();
                 break;
-            case OpCode::aload:
+            case Opcode::aload:
                 memload<Word>();
                 break;
-            case OpCode::bload:
+            case Opcode::bload:
                 memload<Byte>();
                 break;
-            case OpCode::astore:
+            case Opcode::astore:
                 memstore<Word>();
                 break;
-            case OpCode::bstore:
+            case Opcode::bstore:
                 memstore<Byte>();
                 break;
-            case OpCode::i2f:
+            case Opcode::i2f:
                 push(static_cast<f64>(pop<i64>()));
                 break;
-            case OpCode::f2i:
+            case Opcode::f2i:
                 push(static_cast<i64>(pop<f64>()));
                 break;
             // INTEGER ARITHMETIC
-            case OpCode::iadd:
+            case Opcode::iadd:
                 I_ARITH_BINARY(+);
                 break;
-            case OpCode::isub:
+            case Opcode::isub:
                 I_ARITH_BINARY(-);
                 break;
-            case OpCode::imul:
+            case Opcode::imul:
                 I_ARITH_BINARY(*);
                 break;
-            case OpCode::idiv:
+            case Opcode::idiv:
                 I_ARITH_BINARY(/);
                 break;
-            case OpCode::irem:
+            case Opcode::irem:
                 I_ARITH_BINARY(%);
                 break;
-            case OpCode::ineg:
+            case Opcode::ineg:
                 I_ARITH_UNARY(-);
                 break;
-            case OpCode::iinc:
+            case Opcode::iinc:
                 I_ARITH_UNARY(++);
                 break;
-            case OpCode::idec:
+            case Opcode::idec:
                 I_ARITH_UNARY(--);
                 break;
             // INTEGER BITWISE
-            case OpCode::ishl:
+            case Opcode::ishl:
                 I_BITWISE_BINARY(<<);
                 break;
-            case OpCode::ishr:
+            case Opcode::ishr:
                 I_BITWISE_BINARY(>>);
                 break;
-            case OpCode::ixor:
+            case Opcode::ixor:
                 I_BITWISE_BINARY(^);
                 break;
-            case OpCode::ior:
+            case Opcode::ior:
                 I_BITWISE_BINARY(|);
                 break;
-            case OpCode::iand:
+            case Opcode::iand:
                 I_BITWISE_BINARY(&);
                 break;
-            case OpCode::inot:
+            case Opcode::inot:
                 I_BITWISE_UNARY(~);
                 break;
             // FLOATING POINT ARITHMETIC
-            case OpCode::fadd:
+            case Opcode::fadd:
                 F_ARITH_BINARY(+);
                 break;
-            case OpCode::fsub:
+            case Opcode::fsub:
                 F_ARITH_BINARY(-);
                 break;
-            case OpCode::fmul:
+            case Opcode::fmul:
                 F_ARITH_BINARY(*);
                 break;
-            case OpCode::fdiv:
+            case Opcode::fdiv:
                 F_ARITH_BINARY(/);
                 break;
-            case OpCode::fneg:
+            case Opcode::fneg:
                 F_ARITH_UNARY(-);
                 break;
             // INTEGER COMPARISON
-            case OpCode::ieq:
+            case Opcode::ieq:
                 I_LOGIC_BINARY(==);
                 break;
-            case OpCode::ilt:
+            case Opcode::ilt:
                 I_LOGIC_BINARY(<);
                 break;
-            case OpCode::igt:
+            case Opcode::igt:
                 I_LOGIC_BINARY(>);
                 break;
-            case OpCode::ine:
+            case Opcode::ine:
                 I_LOGIC_BINARY(!=);
                 break;
-            case OpCode::ile:
+            case Opcode::ile:
                 I_LOGIC_BINARY(<=);
                 break;
-            case OpCode::ige:
+            case Opcode::ige:
                 I_LOGIC_BINARY(>=);
                 break;
             // FLOATING POINT COMPARISON
-            case OpCode::feq:
+            case Opcode::feq:
                 F_LOGIC_BINARY(==);
                 break;
-            case OpCode::flt:
+            case Opcode::flt:
                 F_LOGIC_BINARY(<);
                 break;
-            case OpCode::fgt:
+            case Opcode::fgt:
                 F_LOGIC_BINARY(>);
                 break;
-            case OpCode::fne:
+            case Opcode::fne:
                 F_LOGIC_BINARY(!=);
                 break;
-            case OpCode::fle:
+            case Opcode::fle:
                 F_LOGIC_BINARY(<=);
                 break;
-            case OpCode::fge:
+            case Opcode::fge:
                 F_LOGIC_BINARY(>=);
                 break;
             // LOGICAL NOT
-            case OpCode::lnot:
+            case Opcode::lnot:
                 I_LOGIC_UNARY(!);
                 break;
             // CONTROL FLOW
-            case OpCode::goto_:
+            case Opcode::goto_:
                 next_program_counter = instruction.index;
                 break;
-            case OpCode::ifne:
+            case Opcode::ifne:
                 if (pop<i64>() != 0) {
                     next_program_counter = instruction.index;
                 }
                 break;
-            case OpCode::ifeq:
+            case Opcode::ifeq:
                 if (pop<i64>() == 0) {
                     next_program_counter = instruction.index;
                 }
                 break;
-            case OpCode::call: {
+            case Opcode::call: {
                 u64 function_index = instruction.index;
                 Function& function = functions[function_index];
                 // store the function index (for GC)
@@ -319,7 +319,7 @@ void VM::run()
                 next_program_counter = function.instruction_index;
                 break;
             }
-            case OpCode::ret:
+            case Opcode::ret:
                 // deallocate the current frame
                 call_stack_top = frame_pointer;
                 // restore the old program counter

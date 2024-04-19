@@ -73,183 +73,183 @@ void Thread::run()
     while ((ptr = instruction_stream.next()) != nullptr) {
         const Instruction& instruction = *ptr;
         switch (instruction.opcode) {
-            case OpCode::nop:
+            case Opcode::nop:
                 break;
-            case OpCode::load: {
+            case Opcode::load: {
                 Word word = call_stack.load_local<Word>(instruction.index);
                 operand_stack.push(word);
                 break;
             }
-            case OpCode::store: {
+            case Opcode::store: {
                 Word word = operand_stack.pop<Word>();
                 call_stack.store_local(instruction.index, word);
                 break;
             }
-            case OpCode::push: {
+            case Opcode::push: {
                 operand_stack.push(instruction.value);
                 break;
             }
-            case OpCode::pop: {
+            case Opcode::pop: {
                 operand_stack.pop<Word>();
                 break;
             }
-            case OpCode::wload: {
+            case Opcode::wload: {
                 u64 address = operand_stack.pop<u64>() + sizeof(Word) * instruction.index;
                 Word word = heap.load<Word>(address);
                 operand_stack.push(word);
                 break;
             }
-            case OpCode::bload: {
+            case Opcode::bload: {
                 u64 address = operand_stack.pop<u64>() + sizeof(Byte) * instruction.index;
                 Byte byte = heap.load<Byte>(address);
                 Word word = bitcast<Byte, Word>(byte);
                 operand_stack.push(word);
                 break;
             }
-            case OpCode::wstore: {
+            case Opcode::wstore: {
                 Word word = operand_stack.pop<Word>();
                 u64 address = operand_stack.pop<u64>() + sizeof(Word) * instruction.index;
                 heap.store(address, word);
                 break;
             }
-            case OpCode::bstore: {
+            case Opcode::bstore: {
                 Word word = operand_stack.pop<Word>();
                 Byte byte = bitcast<Word, Byte>(word);
                 u64 address = operand_stack.pop<u64>() + sizeof(Byte) * instruction.index;
                 heap.store(address, byte);
                 break;
             }
-            case OpCode::i2f: {
+            case Opcode::i2f: {
                 i64 i = operand_stack.pop<i64>();
                 f64 f = static_cast<f64>(i);
                 operand_stack.push(f);
                 break;
             }
-            case OpCode::f2i: {
+            case Opcode::f2i: {
                 f64 f = operand_stack.pop<f64>();
                 i64 i = static_cast<i64>(f);
                 operand_stack.push(i);
                 break;
             }
-            case OpCode::iadd:
+            case Opcode::iadd:
                 I_ARITH_BINARY(+);
                 break;
-            case OpCode::isub:
+            case Opcode::isub:
                 I_ARITH_BINARY(-);
                 break;
-            case OpCode::imul:
+            case Opcode::imul:
                 I_ARITH_BINARY(*);
                 break;
-            case OpCode::idiv:
+            case Opcode::idiv:
                 I_ARITH_BINARY(/);
                 break;
-            case OpCode::irem:
+            case Opcode::irem:
                 I_ARITH_BINARY(%);
                 break;
-            case OpCode::ineg:
+            case Opcode::ineg:
                 I_ARITH_UNARY(-);
                 break;
-            case OpCode::iinc:
+            case Opcode::iinc:
                 I_ARITH_UNARY(++);
                 break;
-            case OpCode::idec:
+            case Opcode::idec:
                 I_ARITH_UNARY(--);
                 break;
-            case OpCode::ishl:
+            case Opcode::ishl:
                 I_BITWISE_BINARY(<<);
                 break;
-            case OpCode::ishr:
+            case Opcode::ishr:
                 I_BITWISE_BINARY(>>);
                 break;
-            case OpCode::ixor:
+            case Opcode::ixor:
                 I_BITWISE_BINARY(^);
                 break;
-            case OpCode::ior:
+            case Opcode::ior:
                 I_BITWISE_BINARY(|);
                 break;
-            case OpCode::iand:
+            case Opcode::iand:
                 I_BITWISE_BINARY(&);
                 break;
-            case OpCode::inot:
+            case Opcode::inot:
                 I_BITWISE_UNARY(~);
                 break;
-            case OpCode::fadd:
+            case Opcode::fadd:
                 F_ARITH_BINARY(+);
                 break;
-            case OpCode::fsub:
+            case Opcode::fsub:
                 F_ARITH_BINARY(-);
                 break;
-            case OpCode::fmul:
+            case Opcode::fmul:
                 F_ARITH_BINARY(*);
                 break;
-            case OpCode::fdiv:
+            case Opcode::fdiv:
                 F_ARITH_BINARY(/);
                 break;
-            case OpCode::fneg:
+            case Opcode::fneg:
                 F_ARITH_UNARY(-);
                 break;
-            case OpCode::ieq:
+            case Opcode::ieq:
                 I_LOGIC_BINARY(==);
                 break;
-            case OpCode::ilt:
+            case Opcode::ilt:
                 I_LOGIC_BINARY(<);
                 break;
-            case OpCode::igt:
+            case Opcode::igt:
                 I_LOGIC_BINARY(>);
                 break;
-            case OpCode::ine:
+            case Opcode::ine:
                 I_LOGIC_BINARY(!=);
                 break;
-            case OpCode::ile:
+            case Opcode::ile:
                 I_LOGIC_BINARY(<=);
                 break;
-            case OpCode::ige:
+            case Opcode::ige:
                 I_LOGIC_BINARY(>=);
                 break;
             // FLOATING POINT COMPARISON
-            case OpCode::feq:
+            case Opcode::feq:
                 F_LOGIC_BINARY(==);
                 break;
-            case OpCode::flt:
+            case Opcode::flt:
                 F_LOGIC_BINARY(<);
                 break;
-            case OpCode::fgt:
+            case Opcode::fgt:
                 F_LOGIC_BINARY(>);
                 break;
-            case OpCode::fne:
+            case Opcode::fne:
                 F_LOGIC_BINARY(!=);
                 break;
-            case OpCode::fle:
+            case Opcode::fle:
                 F_LOGIC_BINARY(<=);
                 break;
-            case OpCode::fge:
+            case Opcode::fge:
                 F_LOGIC_BINARY(>=);
                 break;
-            case OpCode::lnot:
+            case Opcode::lnot:
                 I_LOGIC_UNARY(!);
                 break;
-            case OpCode::goto_: {
+            case Opcode::goto_: {
                 instruction_stream.set_program_counter(instruction.index);
                 break;
             }
-            case OpCode::if_t: {
+            case Opcode::if_t: {
                 if (operand_stack.pop<i64>() != 0) {
                     instruction_stream.set_program_counter(instruction.index);
                 }
                 break;
             }
-            case OpCode::if_f: {
+            case Opcode::if_f: {
                 if (operand_stack.pop<i64>() == 0) {
                     instruction_stream.set_program_counter(instruction.index);
                 }
                 break;
             }
-            case OpCode::invoke_static: {
+            case Opcode::invoke_static: {
                 const auto& function = function_table[instruction.index];
                 INVOKE_FUNCTION(function);
                 break;
             }
-            case OpCode::invoke_dynamic: {
+            case Opcode::invoke_dynamic: {
                 u64 address = operand_stack.pop<u64>();
                 ClosureHeader closure_header = heap.load<ClosureHeader>(address);
                 const auto& function = function_table[closure_header.function_index];
@@ -260,31 +260,31 @@ void Thread::run()
                 }
                 break;
             }
-            case OpCode::invoke_native: {
+            case Opcode::invoke_native: {
                 u64 native_function_index = instruction.index;
                 const auto& native_function = native_function_table[native_function_index];
                 native_function(runtime, *this);
                 break;
             }
-            case OpCode::ret: {
+            case Opcode::ret: {
                 u64 program_counter = call_stack.pop_frame();
                 const auto& frame_data = call_stack.peek_frame_data();
                 const auto& function = function_table[frame_data.function_index];
                 instruction_stream.jump_to(function, program_counter);
                 break;
             }
-            case OpCode::new_: {
+            case Opcode::new_: {
                 u64 address = heap.allocate(instruction.index, 1);
                 operand_stack.push(address);
                 break;
             }
-            case OpCode::new_array: {
+            case Opcode::new_array: {
                 u64 count = operand_stack.pop<u64>();
                 u64 address = heap.allocate(instruction.index, count);
                 operand_stack.push(address);
                 break;
             }
-            case OpCode::array_length: {
+            case Opcode::array_length: {
                 u64 address = operand_stack.pop<u64>();
                 u64 count = heap.count(address);
                 operand_stack.push(count);

@@ -6,8 +6,6 @@
 #include "Common.hpp"
 #include "Code.hpp"
 
-class Runtime;
-
 class InstructionStream
 {
 public:
