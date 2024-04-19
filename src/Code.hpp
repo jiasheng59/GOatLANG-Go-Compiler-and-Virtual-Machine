@@ -114,8 +114,8 @@ struct Type
 {
     u64 memc; // number of elements
     u64 size; // total size
-    u64 index;
-    BitSet pointer_map;
+    u64 index = 0;
+    BitSet pointer_map = {};
 };
 
 #endif /* CODE_HPP */

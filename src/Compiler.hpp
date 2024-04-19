@@ -1,3 +1,6 @@
+#ifndef COMPILER_HPP
+#define COMPILER_HPP
+
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -166,6 +169,103 @@ public:
     }
 };
 
+class BaseType
+{
+public:
+    virtual const std::string& get_name() = 0;
+    virtual Type to_type() = 0;
+};
+
+class IntType : public BaseType
+{
+    std::string name = "int";
+
+public:
+    virtual const std::string& get_name() override
+    {
+        return name;
+    }
+
+    virtual Type to_type() override
+    {
+        return Type{.memc = 0, .size = 8};
+    }
+};
+
+class FloatType : public BaseType
+{
+    std::string name = "float";
+
+public:
+    virtual const std::string& get_name() override
+    {
+        return name;
+    }
+
+    virtual Type to_type() override
+    {
+        return Type{.memc = 0, .size = 8};
+    }
+};
+
+class ChanType : public BaseType
+{
+public:
+    virtual const std::string& get_name() override
+    {
+        return "";
+    }
+
+    virtual Type to_type() override
+    {
+    }
+};
+
+class RecvChanType : public ChanType
+{
+};
+
+class SendChanType : public ChanType
+{
+};
+
+class StructType : public BaseType
+{
+};
+
+class FunctionType : public BaseType
+{
+};
+
+class SliceType : public BaseType
+{
+};
+
+class TypeChecker : public GOatLANGBaseVisitor
+{
+public:
+    virtual std::any visitVarSpec(GOatLANGParser::VarSpecContext* ctx) override
+    {
+        // add the type of var spec to the type enviroment
+    }
+
+    virtual std::any visitParameterDecl(GOatLANGParser::ParameterDeclContext* ctx) override
+    {
+    }
+
+    virtual std::any visitBinaryExpr(GOatLANGParser::BinaryExprContext* ctx) override
+    {
+    }
+
+    virtual std::any visitUnaryExpr(GOatLANGParser::UnaryExprContext* ctx) override
+    {
+    }
+
+    virtual std::any visitCallExpr(GOatLANGParser::CallExprContext* ctx) override
+    {
+    }
+};
+
 class Compiler : public GOatLANGBaseVisitor
 {
 public:
@@ -180,9 +280,14 @@ public:
     Function* current_function;
     VariableFrame* variable_frame;
 
+    // std::vector<Type> type_table;
+    // std::unordered_map<std::string, CompilerType*> type_names;
+    std::vector<BaseType> types;
+    std::unordered_map<std::string, BaseType*> variable_types;
+    std::unordered_map<void*, BaseType*> expression_types;
+
     /*
     std::vector<NativeFunction> native_function_table;
-    std::vector<Type> type_table;
     std::unordered_map<std::string, Type> identifier_types;
     std::unordered_map<void*, Type> node_types;
     */
@@ -220,7 +325,7 @@ public:
         current_function = &function_table[function_index];
 
         // before we visit this function, we need to analyze the variables
-        variable_frames.clear();
+        // variable_frames.clear();
         VariableAnalyzer analyzer{variable_frames};
         analyzer.visitFunctionDecl(ctx);
 
@@ -255,14 +360,15 @@ public:
                 break;
             }
             case VariableCategory::escaped: {
-                code.push_back(Instruction{.opcode = Opcode::new_, .index = 0 /* TODO type */});
+                BaseType* type = expression_types.at(expression);
+                code.push_back(Instruction{.opcode = Opcode::new_, .index = 0 /* TODO */});
                 code.push_back(Instruction{.opcode = Opcode::dup});
                 code.push_back(Instruction{.opcode = Opcode::store, .index = variable.index});
                 code.push_back(Instruction{.opcode = Opcode::wstore, .index = 0});
                 break;
             }
             case VariableCategory::free: {
-                /* TODO error */
+                /* error */
                 break;
             }
         }
@@ -393,11 +499,12 @@ public:
 
     virtual std::any visitGoStmt(GOatLANGParser::GoStmtContext* ctx) override
     {
-        visitExpression(ctx->expression());
-        current_function->code.push_back(Instruction{
-            .opcode = Opcode::invoke_native,
-            .index = 0, // TODO
-        });
+        auto call_expr = dynamic_cast<GOatLANGParser::CallExprContext*>(ctx->expression());
+        auto& code = current_function->code;
+        // TODO
+        visitPrimaryExpr(call_expr->primaryExpr());
+        visitArguments(call_expr->arguments());
+        code.push_back(Instruction{.opcode = Opcode::invoke_native, .index = new_thread_index});
         return {};
     }
 
@@ -504,10 +611,9 @@ public:
 
     virtual std::any visitArguments(GOatLANGParser::ArgumentsContext* ctx) override
     {
-        // arguments? if there is a type then more complicated
-        // otherwise? just generates a bunch of values and put them on the stack
         if (auto go_type = ctx->goType(); go_type) {
             // do something here
+            // not necessary here!
         }
         if (auto expression_list = ctx->expressionList(); expression_list) {
             visitExpressionList(expression_list);
@@ -517,61 +623,97 @@ public:
 
     virtual std::any visitUnaryExpr(GOatLANGParser::UnaryExprContext* ctx) override
     {
-        // first visit the child
-        // and then? push the appropriate opcode
-        visitExpression(ctx->expression());
         auto unary_op = ctx->unary_op->getText();
-        Opcode opcode;
-        if (unary_op == "<-") {
-            // channel, recv, invoke native
+        auto& code = current_function->code;
+        if (unary_op == "&") {
+            // special case, special visitor
+            return {};
         }
 
+        auto expression = ctx->expression();
+        visitExpression(expression);
+        if (unary_op == "<-") {
+            code.push_back(Instruction{.opcode = Opcode::invoke_native, .index = chan_recv_index});
+            code.push_back(Instruction{.opcode = Opcode::wload, .index = 0});
+            return {};
+        }
+        if (unary_op == "*") {
+            code.push_back(Instruction{.opcode = Opcode::wload, .index = 0});
+            return {};
+        }
         if (unary_op == "+") {
-        } else if (unary_op == "-") {
+            return {};
+        }
+        Opcode opcode;
+        auto& type = expression_types.at(expression)->get_name();
+        if (unary_op == "-") {
+            opcode = type == "int" ? Opcode::ineg : Opcode::fneg;
         } else if (unary_op == "!") {
             opcode = Opcode::lnot;
         } else if (unary_op == "^") {
             opcode = Opcode::inot;
-        } else if (unary_op == "*") {
-            // defer, analysis
-        } else if (unary_op == "&") {
-            // take address, analysis. Not supported at the moment
         } else {
+            // error
         }
-        current_function->code.push_back(Instruction{
-            .opcode = opcode,
-            .index = 0,
-        });
+        code.push_back(Instruction{.opcode = opcode});
         return {};
     }
 
     virtual std::any visitBinaryExpr(GOatLANGParser::BinaryExprContext* ctx) override
     {
-        // TODO
-        // visit left, visit right
-        // look at the index
-        // and return the appropriate opcode
+        auto binary_op = ctx->binary_op->getText();
+        auto& code = current_function->code;
+        auto left = ctx->expression(0);
+        auto right = ctx->expression(1);
+        if (binary_op == "||") {
+            visitExpression(left);
+            code.push_back(Instruction{.opcode = Opcode::dup});
+            u64 if_t_index = code.size();
+            code.push_back(Instruction{.opcode = Opcode::if_t});
+            code.push_back(Instruction{.opcode = Opcode::pop});
+            visitExpression(right);
+            code[if_t_index].index = code.size();
+            return {};
+        }
+        if (binary_op == "&&") {
+            visitExpression(left);
+            code.push_back(Instruction{.opcode = Opcode::dup});
+            u64 if_f_index = code.size();
+            code.push_back(Instruction{.opcode = Opcode::if_f});
+            code.push_back(Instruction{.opcode = Opcode::pop});
+            visitExpression(right);
+            code[if_f_index].index = code.size();
+            return {};
+        }
         visitExpression(ctx->expression(0));
         visitExpression(ctx->expression(1));
-        auto binary_op = ctx->binary_op->getText();
-        if (binary_op == "||") {
-        } else if (binary_op == "&&") {
-        }
         Opcode opcode;
+        auto& type = expression_types.at(left)->get_name();
+
         if (binary_op == "==") {
+            opcode = type == "int" ? Opcode::ieq : Opcode::feq;
         } else if (binary_op == "!=") {
+            opcode = type == "int" ? Opcode::ine : Opcode::fne;
         } else if (binary_op == "<") {
+            opcode = type == "int" ? Opcode::ilt : Opcode::flt;
         } else if (binary_op == "<=") {
+            opcode = type == "int" ? Opcode::ile : Opcode::fle;
         } else if (binary_op == ">") {
+            opcode = type == "int" ? Opcode::igt : Opcode::fgt;
         } else if (binary_op == ">=") {
+            opcode = type == "int" ? Opcode::ige : Opcode::fge;
         } else if (binary_op == "+") {
+            opcode = type == "int" ? Opcode::iadd : Opcode::fadd;
         } else if (binary_op == "-") {
+            opcode = type == "int" ? Opcode::isub : Opcode::fsub;
         } else if (binary_op == "|") {
             opcode = Opcode::ior;
         } else if (binary_op == "^") {
             opcode = Opcode::ixor;
         } else if (binary_op == "*") {
+            opcode = type == "int" ? Opcode::imul : Opcode::fmul;
         } else if (binary_op == "/") {
+            opcode = type == "int" ? Opcode::idiv : Opcode::fdiv;
         } else if (binary_op == "%") {
             opcode = Opcode::irem;
         } else if (binary_op == "<<") {
@@ -582,10 +724,7 @@ public:
             opcode = Opcode::iand;
         } else {
         }
-        current_function->code.push_back(Instruction{
-            .opcode = opcode,
-            .index = 0,
-        });
+        current_function->code.push_back(Instruction{.opcode = opcode});
         return {};
     }
 
@@ -603,3 +742,5 @@ public:
         return {};
     }
 };
+
+#endif
