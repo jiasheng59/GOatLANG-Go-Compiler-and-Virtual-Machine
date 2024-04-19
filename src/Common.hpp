@@ -30,7 +30,7 @@ struct Word {
 };
 
 template<typename T>
-const T& read(std::byte* buffer, u64 offset)
+T& read(std::byte* buffer, u64 offset)
 {
     return *reinterpret_cast<T*>(buffer + offset);
 }

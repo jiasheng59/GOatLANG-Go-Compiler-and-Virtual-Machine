@@ -131,7 +131,7 @@ using i64 = std::int64_t;
 using u64 = std::uint64_t;
 using f64 = double;
 
-enum class OpCode
+enum class Opcode
 {
     // MISC
     nop,
@@ -211,7 +211,7 @@ struct Word
 
 struct Instruction
 {
-    OpCode opcode;
+    Opcode opcode;
     union
     {
         u64 index;

@@ -476,56 +476,14 @@ Type *type_check(antlr4::ParserRuleContext *ctx, Pair *te) { // return type of t
 int main()
 {
     const char prog[] =
-        // "func main() {\n"
-        // "   Println(\"Hello, World!\")"
-        // "   var done chan int = make(chan struct{})\n"
-        // "   go func() {\n"
-        // "       select {\n"
-        // "       case <-done:\n"
-        // "           return\n"
-        // "       }\n"
-        // "   }()\n"
-        // "   close(done)\n"
-        // "}";
-
-        "var a, b int = 1, 2\n"
-        "var c int = a + b;\n";
-        // "var c int = 3\n"
-        // "func main() {\n"
-        // "return 1\n"
-        // "}\n";
-
-        // "var a [2]string\n"
-        // "var b chan int = make(chan int)\n"
-        // "func foo(a int, b bool) (chan int, float) {\n"
-        // "var c chan int = make(chan int)\n"
-        // "a + 1;\n"
-        // "return c, 1.0\n"
-        // "}\n"
-        // "func bar(d int) float {\n"
-        // "var e[2]int"
-        // "return d + 5.0\n"
-        // "}\n"
-        // "func goo(f float) {\n"
-        // "if (true) {\n"
-        // "return 1;\n"
-        // "} else {\n"
-        // "return 2;\n"
-        // "}\n"
-        // "}\n"
-        // "func chanfoo() {\n"
-        //     "var c chan int = make(chan int, 1)\n"
-        //     "select {\n"
-        //         "case c <- 1:\n"
-        //             "return 1;\n"
-        //         "case <-c:\n"
-        //             "return 2;\n"
-        //     "}\n"
-        // "}\n";
-        // "func main() {\n"
-        // "return 1\n"
-        // "}\n";
-
+        "func main() {\n"
+        "    var done chan int = make(chan struct{})\n"
+        "    go func(n int) {\n"
+        "        var x int = n * 2 + 3 / 5 % 9\n"
+        "        println(x)\n"
+        "    }(1)\n"
+        "    close(done)\n"
+        "}";
     antlr4::ANTLRInputStream input(prog);
     GOatLANGLexer lexer{&input};
     antlr4::CommonTokenStream tokens{&lexer};

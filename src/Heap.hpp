@@ -6,7 +6,8 @@
 #include "Code.hpp"
 #include "Common.hpp"
 #include "BitSet.hpp"
-#include "CallStack.hpp"
+
+class Runtime;
 
 struct BlockHeader
 {
@@ -23,63 +24,57 @@ class Heap
         return top + block_size <= size;
     }
 
+    u64 new_block(const Type& type, u64 count);
+
 public:
-    Heap() {}
+    Heap() = default;
+    Heap(const Heap&) = delete;
+    Heap(Heap&&) = default;
+    Heap& operator=(const Heap&) = delete;
+    Heap& operator=(Heap&&) = default;
+
+    Heap(Runtime& runtime, u64 heap_size) :
+        runtime{&runtime},
+        mutex{},
+        managed_memory{std::make_unique<std::byte[]>(heap_size * 2)},
+        this_half{managed_memory.get()},
+        that_half{this_half + heap_size},
+        size{heap_size},
+        top{0}
+    {
+    }
 
     static constexpr u64 default_control_bits = 0;
     static constexpr u64 default_foward_pointer = 0;
-    static constexpr u64 block_header_size = sizeof(BlockHeader);
-    static constexpr u64 word_size = sizeof(Word);
     static constexpr u64 mark_bit = 1;
 
     template<typename T>
-    T load(u64 address)
+    const T& load(u64 address)
     {
         return read<T>(this_half, address);
     }
 
     template<typename T>
-    void store(u64 address, T value)
+    void store(u64 address, const T& value)
     {
         write(this_half, address, value);
     }
 
+    BlockHeader& access_block_header(u64 address)
+    {
+        return read<BlockHeader>(this_half, address - sizeof(BlockHeader));
+    }
+
     u64 count(u64 address)
     {
-        u64 block_address = address - block_header_size;
+        u64 block_address = address - sizeof(BlockHeader);
         return read<u64>(this_half, block_address + 24);
     }
 
-    u64 internal_allocate(u64 type_index, u64 count)
-    {
-        const Type& type = type_table[type_index];
-        u64 data_address = top + block_header_size;
-        u64 block_size = block_header_size + type.size * count;
+    u64 allocate(u64 type_index, u64 count);
+    u64 allocate(const Type& type, u64 count);
 
-        if (!enough_space(block_size)) {
-            // error
-        }
-        BlockHeader block_header = {
-            default_control_bits,
-            default_foward_pointer,
-            type_index,
-            count
-        };
-        write(this_half, top, block_header);
-        top += block_size;
-        return data_address;
-    }
-
-    u64 allocate(u64 type_index, u64 count)
-    {
-        const Type& type = type_table[type_index];
-        u64 block_size = block_header_size + type.size * count;
-        if (!enough_space(block_size)) {
-            run_gc();
-        }
-        return internal_allocate(type_index, count);
-    }
-
+    /*
     void run_gc()
     {
         // TO RUN THE GC, WHAT DO WE NEED?
@@ -159,10 +154,11 @@ public:
 
         return new_address;
     }
+    */
 
-    std::vector<CallStack>& call_stacks;
-    std::vector<Function>& function_table;
-    std::vector<Type>& type_table;
+    Runtime* runtime;
+    std::mutex mutex;
+    std::unique_ptr<std::byte[]> managed_memory;
     std::byte* this_half;
     std::byte* that_half;
     u64 size;

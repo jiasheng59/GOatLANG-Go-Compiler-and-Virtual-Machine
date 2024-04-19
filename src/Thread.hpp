@@ -30,8 +30,8 @@ public:
 
     void initialize();
     void finalize();
-    void start(u64 init_function_index);
-    void run(u64 init_function_index);
+    void start();
+    void run();
 
     CallStack& get_call_stack() { return call_stack; }
     OperandStack& get_operand_stack() { return operand_stack; }

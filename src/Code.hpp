@@ -6,7 +6,7 @@
 #include "Common.hpp"
 #include "BitSet.hpp"
 
-enum class OpCode
+enum class Opcode
 {
     // MISC
     nop,
@@ -14,10 +14,11 @@ enum class OpCode
     load,
     // STORE LOCAL VARIABLE
     store,
-    // PUSH TO OPERAND STACK
+    // OPERAND STACK MANIPULATION
     push,
-    // POP FROM OPERAND STACK
     pop,
+    dup,
+    swap,
     // LOAD ADDRESS
     wload,
     bload,
@@ -82,10 +83,10 @@ enum class OpCode
 
 struct Instruction
 {
-    OpCode opcode;
+    Opcode opcode;
     union
     {
-        u64 index;
+        u64 index = 0;
         Word value;
     };
 };
@@ -111,9 +112,10 @@ struct ClosureHeader
 
 struct Type
 {
-    BitSet pointer_map;
     u64 memc; // number of elements
     u64 size; // total size
+    u64 index;
+    BitSet pointer_map;
 };
 
 #endif /* CODE_HPP */
