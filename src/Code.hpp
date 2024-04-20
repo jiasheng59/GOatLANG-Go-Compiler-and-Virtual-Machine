@@ -190,7 +190,7 @@ public:
 class CallableType : public Type
 {
 public:
-    Type* function_type;
+    FunctionType* function_type;
 
     CallableType(FunctionType* function_type) : Type{8}, function_type{function_type}
     {

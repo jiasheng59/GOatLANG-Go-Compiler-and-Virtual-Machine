@@ -30,13 +30,12 @@ int main()
     std::cout << tree->toStringTree(&parser, true) << std::endl;
 
     Compiler compiler{};
-    compiler.visitSourceFile(parser.sourceFile());
+    compiler.visitSourceFile(tree);
     for (auto& [name, index] : compiler.function_indices) {
         std::cout << name << ", " << index << std::endl;
     }
     Configuration configuration = Runtime::default_configuration();
-
-    // configuration.init_function_index = compiler.function_indices.at("main");
+    configuration.init_function_index = compiler.function_indices.at("main");
     // Runtime runtime{
     //     configuration,
     //     std::move(compiler.function_table),
