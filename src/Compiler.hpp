@@ -707,7 +707,9 @@ public:
     static constexpr u64 new_chan_index = 1;
     static constexpr u64 chan_send_index = 2;
     static constexpr u64 chan_recv_index = 3;
-    static constexpr u64 println_index = 4;
+    static constexpr u64 sprint_index = 4;
+    static constexpr u64 iprint_index = 5;
+    static constexpr u64 fprint_index = 6;
 
     std::vector<Function> function_table;
     std::unordered_map<std::string, u64> function_indices;
@@ -749,10 +751,14 @@ public:
         native_function_table.push_back(new_chan);
         native_function_table.push_back(chan_send);
         native_function_table.push_back(chan_recv);
-        native_function_table.push_back(println);
+        native_function_table.push_back(sprint);
+        native_function_table.push_back(iprint);
+        native_function_table.push_back(fprint);
 
         native_function_indices.try_emplace("make", new_chan_index);
-        native_function_indices.try_emplace("println", println_index);
+        native_function_indices.try_emplace("sprint", sprint_index);
+        native_function_indices.try_emplace("iprint", iprint_index);
+        native_function_indices.try_emplace("fprint", fprint_index);
     }
 
     std::any visitExpression(GOatLANGParser::ExpressionContext* ctx)
@@ -981,21 +987,27 @@ public:
     virtual std::any visitBasicLit(GOatLANGParser::BasicLitContext* ctx) override
     {
         Word word;
+        auto& code = current_function->code;
         if (auto int_lit = ctx->INT_LIT(); int_lit) {
             auto text = int_lit->getText();
             u64 value = std::stoull(text);
             word = bitcast<u64, Word>(value);
+            code.push_back(Instruction{.opcode = Opcode::push, .value = word});
         } else if (auto float_lit = ctx->FLOAT_LIT(); float_lit) {
             auto text = float_lit->getText();
             f64 value = std::stod(text);
             word = bitcast<f64, Word>(value);
+            code.push_back(Instruction{.opcode = Opcode::push, .value = word});
         } else if (auto string_lit = ctx->STRING_LIT(); string_lit) {
             auto text = string_lit->getText();
+            auto type = type_names.at("string");
             u64 string_index = string_pool.new_string(std::move(text));
-            word = bitcast<u64, Word>(string_index);
+            code.push_back(Instruction{.opcode = Opcode::new_, .index = type->index});
+            code.push_back(Instruction{.opcode = Opcode::dup});
+            code.push_back(Instruction{.opcode = Opcode::push, .value = bitcast<u64, Word>(string_index)});
+            code.push_back(Instruction{.opcode = Opcode::wload});
         } else {
         }
-        current_function->code.push_back(Instruction{.opcode = Opcode::push, .value = word});
         return {};
     }
 

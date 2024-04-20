@@ -84,6 +84,11 @@ public:
         return channel_manager;
     }
 
+    StringPool& get_string_pool()
+    {
+        return string_pool;
+    }
+
     void start();
 
     Configuration configuration;

@@ -1,10 +1,12 @@
+#include <iostream>
 #include <thread>
 
-#include "Thread.cpp"
-#include "Runtime.cpp"
-#include "Native.hpp"
-#include "ChannelManager.hpp"
 #include "BlockingQueue.hpp"
+#include "ChannelManager.hpp"
+#include "Native.hpp"
+#include "Runtime.hpp"
+#include "StringPool.hpp"
+#include "Thread.hpp"
 
 void new_thread(Runtime& runtime, Thread& thread)
 {
@@ -84,7 +86,22 @@ void chan_recv(Runtime& runtime, Thread& thread)
     operand_stack.push(item_address);
 }
 
-void println(Runtime& runtime, Thread& thread)
+void sprint(Runtime& runtime, Thread& thread)
 {
+    u64 string_address = thread.get_operand_stack().pop<u64>();
+    const auto& string = runtime.get_heap().load<NativeString>(string_address);
+    const auto& native_string = runtime.get_string_pool().get(string.index);
+    std::cout << native_string;
+}
 
+void iprint(Runtime& runtime, Thread& thread)
+{
+    i64 i = thread.get_operand_stack().pop<i64>();
+    std::cout << i;
+}
+
+void fprint(Runtime& runtime, Thread& thread)
+{
+    f64 f = thread.get_operand_stack().pop<f64>();
+    std::cout << f;
 }
