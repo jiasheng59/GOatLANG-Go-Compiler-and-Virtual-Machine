@@ -1,12 +1,12 @@
 #ifndef COMPILER_HPP
 #define COMPILER_HPP
 
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <iostream>
 
 #include "Code.hpp"
 #include "Native.hpp"
@@ -223,6 +223,8 @@ class TypeAnnotator : public GOatLANGBaseVisitor
     {
         std::string name = type.get_name();
         auto it = type_names.find(name);
+        std::cerr << "register type: " << name << std::endl;
+        std::cerr << "#registered types: " << type_names.size() << std::endl;
         if (it != type_names.end()) {
             return it->second;
         }
@@ -236,6 +238,7 @@ class TypeAnnotator : public GOatLANGBaseVisitor
 
     Type* lookup(const std::string& name)
     {
+        std::cerr << "looking for: " << name << std::endl;
         for (auto it = type_environment.rbegin(); it != type_environment.rend(); ++it) {
             auto& frame = *it;
             if (frame.contains(name)) {
@@ -258,15 +261,15 @@ public:
     TypeAnnotator(
         std::unordered_map<std::string, u64>& native_function_indices,
         std::vector<std::unique_ptr<Type>>& type_table,
-        std::unordered_map<std::string, Type*> type_names,
-        std::unordered_map<void*, Type*> node_types,
-        std::unordered_map<void*, VariableFrame> variable_frames) : type_table{type_table},
-                                                                    type_names{type_names},
-                                                                    node_types{node_types},
-                                                                    variable_frames{variable_frames},
-                                                                    type_environment{},
-                                                                    arg_types{},
-                                                                    function_name{nullptr}
+        std::unordered_map<std::string, Type*>& type_names,
+        std::unordered_map<void*, Type*>& node_types,
+        std::unordered_map<void*, VariableFrame>& variable_frames) : type_table{type_table},
+                                                                     type_names{type_names},
+                                                                     node_types{node_types},
+                                                                     variable_frames{variable_frames},
+                                                                     type_environment{},
+                                                                     arg_types{},
+                                                                     function_name{nullptr}
     {
         register_type(IntType{});
         register_type(FloatType{});
@@ -276,12 +279,18 @@ public:
         register_type(ChannelType{nullptr});
         auto& top_level_frame = type_environment.emplace_back();
         for (auto& [name, _] : native_function_indices) {
-            top_level_frame.try_emplace(name, type_names.at("native func"));
+            std::cerr << "native name: " << name << std::endl;
+            top_level_frame.try_emplace(name, type_names.at("native function"));
+        }
+        std::cerr << "end of constructor" << std::endl;
+        for (auto& [name, _] : type_names) {
+            std::cerr << "registered type name: " << name << std::endl;
         }
     }
 
     std::any visitExpression(GOatLANGParser::ExpressionContext* ctx)
     {
+        std::cerr << "TypeAnnotator::visitExpression" << std::endl;
         return ctx->accept(this);
     }
 
@@ -290,8 +299,19 @@ public:
         return ctx->accept(this);
     }
 
+    virtual std::any visitPrimaryExpr_(GOatLANGParser::PrimaryExpr_Context* ctx) override
+    {
+        std::cerr << "TypeAnnotator::visitExpression" << std::endl;
+        auto primary_expr = ctx->primaryExpr();
+        visitPrimaryExpr(primary_expr);
+        auto type = node_types.at(primary_expr);
+        node_types.try_emplace(ctx, type);
+        return {};
+    }
+
     virtual std::any visitFunctionDecl(GOatLANGParser::FunctionDeclContext* ctx) override
     {
+        std::cerr << "#registered types: " << type_names.size() << std::endl;
         auto name = ctx->IDENTIFIER()->getText();
         function_name = &name;
         auto function = ctx->function();
@@ -303,16 +323,21 @@ public:
 
     virtual std::any visitFunction(GOatLANGParser::FunctionContext* ctx) override
     {
-        auto& current_type_frame = type_environment[type_environment.size() - 1];
+        auto env_index = type_environment.size() - 1;
         type_environment.emplace_back();
         auto signature = ctx->signature();
         visitSignature(signature);
         auto type = node_types.at(signature);
         if (function_name) {
-            current_type_frame.try_emplace(*function_name, type);
+            std::cerr << "function name: " << *function_name << std::endl;
+            std::cerr << "type: " << type->get_name() << std::endl;
+            std::cerr << "type env size: " << type_environment.size() << std::endl;
+            type_environment.at(env_index).try_emplace(*function_name, type);
         }
+        std::cerr << "#registered types: " << type_names.size() << std::endl;
         node_types.try_emplace(ctx, type);
         visitBlock(ctx->block());
+        type_environment.pop_back();
         return {};
     }
 
@@ -326,6 +351,7 @@ public:
             result_type = node_types.at(result);
         }
         auto function_type = FunctionType{arg_types, result_type};
+        std::cerr << "#registered types: " << type_names.size() << std::endl;
         auto type = register_type(function_type);
         node_types.try_emplace(ctx, type);
         return {};
@@ -333,6 +359,7 @@ public:
 
     virtual std::any visitParameterDecl(GOatLANGParser::ParameterDeclContext* ctx) override
     {
+        std::cerr << "#registered types: " << type_names.size() << std::endl;
         auto go_type = ctx->goType();
         visitGoType(go_type);
         auto type = wrap_callable_type(node_types.at(go_type));
@@ -417,6 +444,10 @@ public:
     virtual std::any visitTypeName(GOatLANGParser::TypeNameContext* ctx) override
     {
         auto name = ctx->IDENTIFIER()->getText();
+        std::cerr << "type name: " << name << std::endl;
+        for (auto& [name, _] : type_names) {
+            std::cerr << "registered type name: " << name << std::endl;
+        }
         auto type = type_names.at(name);
         node_types.try_emplace(ctx, type);
         return {};
@@ -518,26 +549,34 @@ public:
 
     virtual std::any visitCallExpr(GOatLANGParser::CallExprContext* ctx) override
     {
+        std::cerr << "TypeAnnotator::visitCallExpr" << std::endl;
         auto primary_expr = ctx->primaryExpr();
         visitPrimaryExpr(primary_expr);
-        auto callable_type = node_types.at(primary_expr);
+        visitArguments(ctx->arguments());
+        auto type = node_types.at(primary_expr);
+        if (auto native_function_type = dynamic_cast<NativeFunctionType*>(type); native_function_type) {
+            node_types.try_emplace(ctx, native_function_type);
+            return {};
+        }
         FunctionType* function_type = nullptr;
-        if (auto closure_type = dynamic_cast<ClosureType*>(callable_type); closure_type) {
+        if (auto closure_type = dynamic_cast<ClosureType*>(type); closure_type) {
             function_type = closure_type->function_type;
+        } else if (auto callable_type = dynamic_cast<CallableType*>(type); callable_type) {
+            function_type = callable_type->function_type;
         } else {
-            function_type = dynamic_cast<FunctionType*>(callable_type);
+            function_type = dynamic_cast<FunctionType*>(type);
         }
         if (!function_type) {
             throw std::runtime_error("callexpr: operand is not a callable");
         }
-        auto type = function_type->return_type;
+        type = function_type->return_type;
         node_types.try_emplace(ctx, type);
-        visitArguments(ctx->arguments());
         return {};
     }
 
     virtual std::any visitBinaryExpr(GOatLANGParser::BinaryExprContext* ctx) override
     {
+        std::cerr << "TypeAnnotator::visitBinaryExpr" << std::endl;
         auto binary_op = ctx->binary_op->getText();
         auto left = ctx->expression(0);
         auto right = ctx->expression(1);
@@ -547,6 +586,7 @@ public:
 
         auto left_type = node_types.at(left);
         auto right_type = node_types.at(right);
+
         if (left_type != right_type) {
             throw std::runtime_error("binaryexpr: operands have different types");
         }
@@ -746,7 +786,7 @@ public:
         return raw_ptr;
     }
 
-    void register_native_function()
+    Compiler()
     {
         native_function_table.push_back(new_thread);
         native_function_table.push_back(new_chan);
