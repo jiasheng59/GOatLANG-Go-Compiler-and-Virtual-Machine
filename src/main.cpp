@@ -3,6 +3,7 @@
 #include "antlr4-runtime.h"
 #include "GOatLANGLexer.h"
 #include "GOatLANGParser.h"
+#include "Compiler.hpp"
 
 int main()
 {
@@ -25,6 +26,8 @@ int main()
     }
     GOatLANGParser parser{&tokens};
     auto tree = parser.sourceFile();
+    Compiler compiler{};
+    compiler.visitSourceFile(parser.sourceFile());
     std::cout << tree->toStringTree(&parser, true) << std::endl;
     return 0;
 }

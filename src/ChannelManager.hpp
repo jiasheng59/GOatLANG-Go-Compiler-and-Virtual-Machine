@@ -1,13 +1,16 @@
+#ifndef CHANNEL_MANAGER_HPP
+#define CHANNEL_MANAGER_HPP
+
 #include <mutex>
 #include <vector>
 
-#include "Common.hpp"
 #include "BlockingQueue.hpp"
 
 class ChannelManager
 {
     std::mutex mutex;
     std::vector<BlockingQueue> channels;
+
 public:
     u64 new_channel(u64 channel_size)
     {
@@ -23,3 +26,5 @@ public:
         return channels[channel_index];
     }
 };
+
+#endif /* CHANNEL_MANAGER_HPP */

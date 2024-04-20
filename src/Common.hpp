@@ -1,8 +1,8 @@
 #ifndef COMMON_HPP
 #define COMMON_HPP
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 static_assert(sizeof(float) == 4, "float should be 32-bit");
@@ -21,27 +21,29 @@ using u64 = std::uint64_t;
 using f32 = float;
 using f64 = double;
 
-struct Byte {
+struct Byte
+{
     std::byte data[1];
 };
 
-struct Word {
+struct Word
+{
     std::byte data[8];
 };
 
-template<typename T>
+template <typename T>
 T& read(std::byte* buffer, u64 offset)
 {
     return *reinterpret_cast<T*>(buffer + offset);
 }
 
-template<typename T>
+template <typename T>
 void write(std::byte* buffer, u64 offset, const T& value)
 {
     std::memcpy(buffer + offset, &value, sizeof(T));
 }
 
-template<typename T, typename R>
+template <typename T, typename R>
 R bitcast(const T& value)
 {
     R result;

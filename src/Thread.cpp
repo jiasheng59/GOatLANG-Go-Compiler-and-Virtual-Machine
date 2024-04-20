@@ -3,19 +3,26 @@
 #include "Runtime.hpp"
 #include "Thread.hpp"
 
+Thread::Thread(Runtime& runtime) : runtime{&runtime},
+                                   instruction_stream{},
+                                   call_stack{runtime.configuration.call_stack_size},
+                                   operand_stack{runtime.configuration.operand_stack_size}
+{
+}
+
 void Thread::initialize()
 {
-    std::lock_guard lock{runtime.get_thread_pool_mutex()};
-    runtime.get_thread_pool().insert(this);
+    std::lock_guard lock{runtime->get_thread_pool_mutex()};
+    runtime->get_thread_pool().insert(this);
 }
 
 void Thread::finalize()
 {
-    std::lock_guard lock{runtime.get_thread_pool_mutex()};
-    auto& thread_pool = runtime.get_thread_pool();
+    std::lock_guard lock{runtime->get_thread_pool_mutex()};
+    auto& thread_pool = runtime->get_thread_pool();
     thread_pool.erase(this);
     if (thread_pool.empty()) {
-        runtime.get_termination_condition().notify_all();
+        runtime->get_termination_condition().notify_all();
     }
 }
 
@@ -54,19 +61,16 @@ void Thread::run()
 #define I_BITWISE_UNARY(op) GENERIC_UNARY(i64, i64, op)
 #define F_ARITH_UNARY(op) GENERIC_UNARY(f64, f64, op)
 
-    Heap& heap = runtime.get_heap();
-    std::vector<Function>& function_table = runtime.get_function_table();
-    std::vector<NativeFunction>& native_function_table = runtime.get_native_function_table();
+    Heap& heap = runtime->get_heap();
+    std::vector<Function>& function_table = runtime->get_function_table();
+    std::vector<NativeFunction>& native_function_table = runtime->get_native_function_table();
+    auto& type_table = runtime->type_table;
 
-#define INVOKE_FUNCTION(function)                                            \
-    do {                                                                     \
-        u64 program_counter = instruction_stream.get_program_counter();      \
-        call_stack.push_frame(function, program_counter);                    \
-        instruction_stream.jump_to(function);                                \
-        for (u16 i = 1; i <= function.argc; ++i) {                           \
-            Word word = operand_stack.pop<Word>();                           \
-            call_stack.store_local(function.capc + function.argc - i, word); \
-        }                                                                    \
+#define INVOKE_FUNCTION(function)                                       \
+    do {                                                                \
+        u64 program_counter = instruction_stream.get_program_counter(); \
+        call_stack.push_frame(function, program_counter);               \
+        instruction_stream.jump_to(function);                           \
     } while (false)
 
     const Instruction* ptr;
@@ -118,6 +122,7 @@ void Thread::run()
                 operand_stack.push(word);
                 break;
             }
+            // TODO
             case Opcode::wstore: {
                 Word word = operand_stack.pop<Word>();
                 u64 address = operand_stack.pop<u64>() + sizeof(Word) * instruction.index;
@@ -218,7 +223,6 @@ void Thread::run()
             case Opcode::ige:
                 I_LOGIC_BINARY(>=);
                 break;
-            // FLOATING POINT COMPARISON
             case Opcode::feq:
                 F_LOGIC_BINARY(==);
                 break;
@@ -263,19 +267,19 @@ void Thread::run()
             }
             case Opcode::invoke_dynamic: {
                 u64 address = operand_stack.pop<u64>();
-                ClosureHeader closure_header = heap.load<ClosureHeader>(address);
-                const auto& function = function_table[closure_header.function_index];
-                INVOKE_FUNCTION(function);
+                auto& closure_header = heap.load<ClosureHeader>(address);
+                const auto& function = function_table[closure_header.index];
                 for (u16 i = 0; i < function.capc; ++i) {
                     u64 cap_address = heap.load<u64>(address + sizeof(ClosureHeader) + sizeof(u64) * i);
                     call_stack.store_local(i, cap_address);
                 }
+                INVOKE_FUNCTION(function);
                 break;
             }
             case Opcode::invoke_native: {
                 u64 native_function_index = instruction.index;
                 const auto& native_function = native_function_table[native_function_index];
-                native_function(runtime, *this);
+                native_function(*runtime, *this);
                 break;
             }
             case Opcode::ret: {
@@ -289,24 +293,11 @@ void Thread::run()
                 break;
             }
             case Opcode::new_: {
-                u64 address = heap.allocate(instruction.index, 1);
+                const auto& type = *type_table[instruction.index];
+                u64 address = heap.allocate(type, 1);
                 operand_stack.push(address);
                 break;
             }
-                /*
-                case Opcode::new_array: {
-                    u64 count = operand_stack.pop<u64>();
-                    u64 address = heap.allocate(instruction.index, count);
-                    operand_stack.push(address);
-                    break;
-                }
-                case Opcode::array_length: {
-                    u64 address = operand_stack.pop<u64>();
-                    u64 count = heap.count(address);
-                    operand_stack.push(count);
-                    break;
-                }
-                */
         }
     }
 }

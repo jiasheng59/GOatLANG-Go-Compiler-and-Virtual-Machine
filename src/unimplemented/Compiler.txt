@@ -1,0 +1,71 @@
+class BaseType
+{
+public:
+    virtual const std::string& get_name() = 0;
+    virtual Type to_type() = 0;
+};
+
+class IntType : public BaseType
+{
+    std::string name = "int";
+
+public:
+    virtual const std::string& get_name() override
+    {
+        return name;
+    }
+
+    virtual Type to_type() override
+    {
+        return Type{.memc = 0, .size = 8};
+    }
+};
+
+class FloatType : public BaseType
+{
+    std::string name = "float";
+
+public:
+    virtual const std::string& get_name() override
+    {
+        return name;
+    }
+
+    virtual Type to_type() override
+    {
+        return Type{.memc = 0, .size = 8};
+    }
+};
+
+class ChanType : public BaseType
+{
+public:
+    virtual const std::string& get_name() override
+    {
+        return "";
+    }
+
+    virtual Type to_type() override
+    {
+    }
+};
+
+class RecvChanType : public ChanType
+{
+};
+
+class SendChanType : public ChanType
+{
+};
+
+class StructType : public BaseType
+{
+};
+
+class FunctionType : public BaseType
+{
+};
+
+class SliceType : public BaseType
+{
+};

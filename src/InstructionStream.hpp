@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "Code.hpp"
-#include "Common.hpp"
 
 class InstructionStream
 {

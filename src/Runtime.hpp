@@ -1,16 +1,17 @@
 #ifndef RUNTIME_HPP
 #define RUNTIME_HPP
 
-#include <mutex>
 #include <condition_variable>
-#include <vector>
+#include <mutex>
 #include <unordered_set>
+#include <vector>
 
-#include "Common.hpp"
-#include "Code.hpp"
-#include "Heap.hpp"
-#include "Thread.hpp"
 #include "ChannelManager.hpp"
+#include "Code.hpp"
+#include "Common.hpp"
+#include "Heap.hpp"
+#include "StringPool.hpp"
+#include "Thread.hpp"
 
 struct Configuration
 {
@@ -23,13 +24,20 @@ struct Configuration
 class Runtime
 {
 public:
-    static constexpr u64 channel_type_index = 0;
+    static constexpr u64 channel_type_index = 5;
 
     Runtime() = default;
     Runtime(const Runtime&) = delete;
     Runtime(Runtime&&) = delete;
     Runtime& operator=(const Runtime&) = delete;
     Runtime& operator=(Runtime&&) = delete;
+
+    Runtime(
+    const Configuration& configuration,
+    std::vector<Function>&& function_table,
+    std::vector<NativeFunction>&& native_function_table,
+    std::vector<std::unique_ptr<Type>>&& type_table,
+    StringPool&& string_pool);
 
     std::vector<Function>& get_function_table()
     {
@@ -41,7 +49,7 @@ public:
         return native_function_table;
     }
 
-    std::vector<Type>& get_type_table()
+    std::vector<std::unique_ptr<Type>>& get_type_table()
     {
         return type_table;
     }
@@ -81,10 +89,11 @@ public:
     Configuration configuration;
     std::vector<Function> function_table;
     std::vector<NativeFunction> native_function_table;
-    std::vector<Type> type_table;
+    std::vector<std::unique_ptr<Type>> type_table;
 
     Heap heap;
     ChannelManager channel_manager;
+    StringPool string_pool;
 
     static Configuration default_configuration()
     {
