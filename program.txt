@@ -1,0 +1,8 @@
+func main() {
+    var done chan int = make(chan struct{});
+    go func(n int) {
+        var x int = n * 2 + 3 / 5 % 9;
+        println(x);
+    }(1);
+    close(done);
+};

@@ -42,6 +42,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/generated
     ${PROJECT_SOURCE_DIR}/src
     ${PROJECT_SOURCE_DIR}/antlr4-runtime-copy  # Adjusted include path
+    /usr/local/include/antlr4-runtime
 )
 
 set(GOatLANG_SRC
