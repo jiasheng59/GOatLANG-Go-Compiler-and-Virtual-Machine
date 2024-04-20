@@ -12,7 +12,6 @@ class Runtime;
 struct BlockHeader
 {
     u64 control_bits;
-    u64 forward_pointer;
     u64 type_index;
     u64 count;
 };
@@ -44,9 +43,11 @@ public:
     {
     }
 
+    /*
     static constexpr u64 default_control_bits = 0;
     static constexpr u64 default_foward_pointer = 0;
     static constexpr u64 mark_bit = 1;
+    */
 
     template<typename T>
     const T& load(u64 address)
@@ -63,12 +64,6 @@ public:
     BlockHeader& access_block_header(u64 address)
     {
         return read<BlockHeader>(this_half, address - sizeof(BlockHeader));
-    }
-
-    u64 count(u64 address)
-    {
-        u64 block_address = address - sizeof(BlockHeader);
-        return read<u64>(this_half, block_address + 24);
     }
 
     u64 allocate(u64 type_index, u64 count);

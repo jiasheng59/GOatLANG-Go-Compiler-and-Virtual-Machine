@@ -730,15 +730,20 @@ public:
 
     virtual std::any visitCallExpr(GOatLANGParser::CallExprContext* ctx) override
     {
-        // depend on the thing being called
-        // if the function being called is a static function
-        // (exist at top-level)
-        // then invoke static
-        // if the function being called is a native function
-        // then invoke native
-        // otherwise, invoke dynamic
-        visitPrimaryExpr(ctx->primaryExpr());
-        visitArguments(ctx->arguments());
+        auto primary_expr = ctx->primaryExpr();
+        if (auto arguments = ctx->arguments(); arguments) {
+            visitArguments(arguments);
+        }
+        auto& code = current_function->code;
+        if (auto operand = dynamic_cast<GOatLANGParser::Operand_Context*>(primary_expr); operand) {
+            // invoke native here as well, but whatever, we shall not change it right now
+            auto name = operand->operand()->operandName()->IDENTIFIER()->getText();
+            auto function_index = function_indices.at(name);
+            code.push_back(Instruction{.opcode = Opcode::invoke_static, .index = function_index});
+            return {};
+        }
+        visitPrimaryExpr(primary_expr);
+        code.push_back(Instruction{.opcode = Opcode::invoke_dynamic});
         return {};
     }
 };

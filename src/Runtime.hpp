@@ -86,6 +86,16 @@ public:
     Heap heap;
     ChannelManager channel_manager;
 
+    static Configuration default_configuration()
+    {
+        return Configuration{
+            .heap_size = 64 * 1024 * 1024,  // 64 MB
+            .call_stack_size = 8 * 1024,    // 8 KB
+            .operand_stack_size = 1 * 1024, // 1 KB, 128 values
+            .init_function_index = 0,
+        };
+    }
+
     std::unordered_set<Thread*> thread_pool;
     std::mutex thread_pool_mutex;
     // main thread can only terminate
@@ -94,6 +104,7 @@ public:
     std::condition_variable termination_condition;
 };
 
+/*
 class RuntimeBuilder
 {
 public:
@@ -115,14 +126,6 @@ public:
         type_table = std::forward<T>(new_type_table);
     }
 
-    void default_configuration()
-    {
-        configuration.heap_size = 64 * 1024 * 1024; // 64 MB
-        configuration.call_stack_size = 8 * 1024; // 8 KB
-        configuration.operand_stack_size = 1 * 1024; // 1 KB, 128 values
-        configuration.init_function_index = 0;
-    }
-
     Runtime build()
     {
         return Runtime{};
@@ -134,5 +137,6 @@ private:
     std::vector<NativeFunction> native_function_table;
     std::vector<Type> type_table;
 };
+*/
 
 #endif /* RUNTIME_HPP */
