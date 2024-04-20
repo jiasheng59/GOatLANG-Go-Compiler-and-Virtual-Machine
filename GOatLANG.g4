@@ -1,3 +1,4 @@
+
 grammar GOatLANG;
 
 sourceFile

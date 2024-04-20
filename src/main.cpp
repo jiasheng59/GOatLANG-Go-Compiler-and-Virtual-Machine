@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 
 #include "antlr4-runtime.h"
 #include "GOatLANGLexer.h"
@@ -35,7 +36,7 @@ func main() {
     tokens.fill();
     std::cout << "number of tokens: " << tokens.size() << std::endl;
     for (auto token : tokens.getTokens()) {
-        std::cout << token->toString() << std::endl;
+        // std::cout << token->toString() << std::endl;
     }
     GOatLANGParser parser{&tokens};
     auto tree = parser.sourceFile();
