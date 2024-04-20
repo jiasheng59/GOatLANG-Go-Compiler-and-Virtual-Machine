@@ -5,9 +5,9 @@ We simplify the instruction to build the system to the following:
 1. `git clone https://github.com/jiasheng59/GOatLANG-Go-Compiler-and-Virtual-Machine.git`
 2. `cd build`
 3. `make`
-4. `./GOatLANG`
+4. `./GOatLANG` <testcase.goat>
 
-To input Go program and run the test case, insert the GOatLANG program into `src/main.cpp` 's main function as argument of local variable `prog` see example as follow:
+Please find the example test cases under `examples/`
 
 
 Follow the following instructions if you wish to build the entire system from scratch.
