@@ -4,3 +4,5 @@
 build/
 generated/
 cmake-build-debug/
+*.gch
+*.o

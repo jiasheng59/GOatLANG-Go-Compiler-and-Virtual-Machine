@@ -1,0 +1,10 @@
+func main() {
+    var x int
+    var y int = 2
+    if (y < 10) {
+        x = 1
+    } else {
+        x = 2
+    }
+    iprint(x)
+}

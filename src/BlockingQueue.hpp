@@ -1,17 +1,21 @@
+#ifndef BLOCKING_QUEUE_HPP
+#define BLOCKING_QUEUE_HPP
+
+#include <condition_variable>
 #include <deque>
 #include <mutex>
-#include <condition_variable>
-#include <cstdint>
 
 #include "Common.hpp"
 
-class BlockingQueue {
+class BlockingQueue
+{
     std::deque<u64> content;
-    std::size_t capacity;
+    u64 capacity;
 
     std::mutex mutex;
     std::condition_variable not_empty;
     std::condition_variable not_full;
+
 public:
     BlockingQueue() = delete;
     BlockingQueue(const BlockingQueue&) = delete;
@@ -19,12 +23,12 @@ public:
     BlockingQueue& operator=(const BlockingQueue&) = delete;
     BlockingQueue& operator=(BlockingQueue&&) = default;
 
-    BlockingQueue(std::size_t capacity) : capacity(capacity) {}
+    BlockingQueue(u64 capacity) : capacity(capacity) {}
 
     void push(u64 item)
     {
         {
-            std::unique_lock<std::mutex> lock(mutex);
+            std::unique_lock<std::mutex> lock{mutex};
             not_full.wait(lock, [this]() { return content.size() < capacity; });
             content.push_back(item);
         }
@@ -34,7 +38,7 @@ public:
     bool try_push(u64 item)
     {
         {
-            std::unique_lock<std::mutex> lock(mutex);
+            std::unique_lock<std::mutex> lock{mutex};
             if (content.size() == capacity)
                 return false;
             content.push_back(item);
@@ -43,10 +47,10 @@ public:
         return true;
     }
 
-    void pop(u64 &item)
+    void pop(u64& item)
     {
         {
-            std::unique_lock<std::mutex> lock(mutex);
+            std::unique_lock<std::mutex> lock{mutex};
             not_empty.wait(lock, [this]() { return !content.empty(); });
             item = content.front();
             content.pop_front();
@@ -54,10 +58,10 @@ public:
         not_full.notify_one();
     }
 
-    bool try_pop(u64 &item)
+    bool try_pop(u64& item)
     {
         {
-            std::unique_lock<std::mutex> lock(mutex);
+            std::unique_lock<std::mutex> lock{mutex};
             if (content.empty())
                 return false;
             item = content.front();
@@ -67,3 +71,5 @@ public:
         return true;
     }
 };
+
+#endif /* BLOCKING_QUEUE_HPP */
