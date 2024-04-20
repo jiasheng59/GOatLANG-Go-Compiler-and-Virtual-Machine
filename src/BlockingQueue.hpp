@@ -2,7 +2,6 @@
 #define BLOCKING_QUEUE_HPP
 
 #include <condition_variable>
-#include <cstdint>
 #include <deque>
 #include <mutex>
 
@@ -11,7 +10,7 @@
 class BlockingQueue
 {
     std::deque<u64> content;
-    std::size_t capacity;
+    u64 capacity;
 
     std::mutex mutex;
     std::condition_variable not_empty;
@@ -24,7 +23,7 @@ public:
     BlockingQueue& operator=(const BlockingQueue&) = delete;
     BlockingQueue& operator=(BlockingQueue&&) = default;
 
-    BlockingQueue(std::size_t capacity) : capacity(capacity) {}
+    BlockingQueue(u64 capacity) : capacity(capacity) {}
 
     void push(u64 item)
     {

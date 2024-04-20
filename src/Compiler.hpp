@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <iostream>
 
 #include "Code.hpp"
 #include "Native.hpp"
@@ -773,6 +774,7 @@ public:
 
     virtual std::any visitSourceFile(GOatLANGParser::SourceFileContext* ctx) override
     {
+        std::cerr << "Compiler::visitSourceFile" << std::endl;
         FunctionScanner scanner{function_table, function_indices, node_functions};
         scanner.visitSourceFile(ctx);
         VariableAnalyzer analyzer{variable_frames, node_functions};
@@ -782,11 +784,13 @@ public:
             type_table, type_names,
             node_types, variable_frames};
         annotator.visitSourceFile(ctx);
+        std::cerr << ctx->topLevelDecl().size() << std::endl;
         return visitChildren(ctx);
     }
 
     virtual std::any visitTopLevelDecl(GOatLANGParser::TopLevelDeclContext* ctx) override
     {
+        std::cerr << "Compiler::visitTopLevelDecl" << std::endl;
         if (auto function_decl = ctx->functionDecl(); function_decl) {
             visitFunctionDecl(function_decl);
         }
@@ -795,6 +799,7 @@ public:
 
     virtual std::any visitFunctionDecl(GOatLANGParser::FunctionDeclContext* ctx) override
     {
+        std::cerr << "Compiler::visitFunctionDecl" << std::endl;
         Function* saved_function = current_function;
         u64 function_index = function_indices.at(ctx->IDENTIFIER()->getText());
         current_function = &function_table[function_index];
@@ -805,6 +810,7 @@ public:
 
     virtual std::any visitFunction(GOatLANGParser::FunctionContext* ctx) override
     {
+        std::cerr << "Compiler::visitFunction" << std::endl;
         VariableFrame* saved_variable_frame = variable_frame;
         variable_frame = &variable_frames.at(ctx);
         visitSignature(ctx->signature());

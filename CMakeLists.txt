@@ -45,10 +45,10 @@ include_directories(
 )
 
 set(GOatLANG_SRC
-    # ${PROJECT_SOURCE_DIR}/src/Heap.cpp
-    # ${PROJECT_SOURCE_DIR}/src/Native.cpp
-    # ${PROJECT_SOURCE_DIR}/src/Thread.cpp
-    # ${PROJECT_SOURCE_DIR}/src/Runtime.cpp
+    ${PROJECT_SOURCE_DIR}/src/Heap.cpp
+    ${PROJECT_SOURCE_DIR}/src/Native.cpp
+    ${PROJECT_SOURCE_DIR}/src/Thread.cpp
+    ${PROJECT_SOURCE_DIR}/src/Runtime.cpp
     ${PROJECT_SOURCE_DIR}/src/main.cpp
     ${GOatLANG_GENERATED_SRC}
 )
