@@ -1,16 +1,17 @@
 #ifndef RUNTIME_HPP
 #define RUNTIME_HPP
 
-#include <mutex>
 #include <condition_variable>
-#include <vector>
+#include <mutex>
 #include <unordered_set>
+#include <vector>
 
-#include "Common.hpp"
-#include "Code.hpp"
-#include "Heap.hpp"
-#include "Thread.hpp"
 #include "ChannelManager.hpp"
+#include "Code.hpp"
+#include "Common.hpp"
+#include "Heap.hpp"
+#include "StringPool.hpp"
+#include "Thread.hpp"
 
 struct Configuration
 {
@@ -23,13 +24,20 @@ struct Configuration
 class Runtime
 {
 public:
-    static constexpr u64 channel_type_index = 0;
+    static constexpr u64 channel_type_index = 5;
 
     Runtime() = default;
     Runtime(const Runtime&) = delete;
     Runtime(Runtime&&) = delete;
     Runtime& operator=(const Runtime&) = delete;
     Runtime& operator=(Runtime&&) = delete;
+
+    Runtime(
+    const Configuration& configuration,
+    std::vector<Function>&& function_table,
+    std::vector<NativeFunction>&& native_function_table,
+    std::vector<std::unique_ptr<Type>>&& type_table,
+    StringPool&& string_pool);
 
     std::vector<Function>& get_function_table()
     {
@@ -41,7 +49,7 @@ public:
         return native_function_table;
     }
 
-    std::vector<Type>& get_type_table()
+    std::vector<std::unique_ptr<Type>>& get_type_table()
     {
         return type_table;
     }
@@ -76,15 +84,31 @@ public:
         return channel_manager;
     }
 
+    StringPool& get_string_pool()
+    {
+        return string_pool;
+    }
+
     void start();
 
     Configuration configuration;
     std::vector<Function> function_table;
     std::vector<NativeFunction> native_function_table;
-    std::vector<Type> type_table;
+    std::vector<std::unique_ptr<Type>> type_table;
 
     Heap heap;
     ChannelManager channel_manager;
+    StringPool string_pool;
+
+    static Configuration default_configuration()
+    {
+        return Configuration{
+            .heap_size = 64 * 1024 * 1024,  // 64 MB
+            .call_stack_size = 8 * 1024,    // 8 KB
+            .operand_stack_size = 1 * 1024, // 1 KB, 128 values
+            .init_function_index = 0,
+        };
+    }
 
     std::unordered_set<Thread*> thread_pool;
     std::mutex thread_pool_mutex;
@@ -94,6 +118,7 @@ public:
     std::condition_variable termination_condition;
 };
 
+/*
 class RuntimeBuilder
 {
 public:
@@ -115,14 +140,6 @@ public:
         type_table = std::forward<T>(new_type_table);
     }
 
-    void default_configuration()
-    {
-        configuration.heap_size = 64 * 1024 * 1024; // 64 MB
-        configuration.call_stack_size = 8 * 1024; // 8 KB
-        configuration.operand_stack_size = 1 * 1024; // 1 KB, 128 values
-        configuration.init_function_index = 0;
-    }
-
     Runtime build()
     {
         return Runtime{};
@@ -134,5 +151,6 @@ private:
     std::vector<NativeFunction> native_function_table;
     std::vector<Type> type_table;
 };
+*/
 
 #endif /* RUNTIME_HPP */

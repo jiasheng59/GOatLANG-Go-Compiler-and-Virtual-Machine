@@ -3,7 +3,6 @@
 
 #include <memory>
 
-#include "Common.hpp"
 #include "Code.hpp"
 
 struct FrameData
@@ -19,16 +18,14 @@ public:
     CallStack() = default;
     CallStack(const CallStack&) = delete;
     CallStack(CallStack&&) = default;
-
     CallStack& operator=(const CallStack&) = delete;
     CallStack& operator=(CallStack&&) = default;
 
-    CallStack(u64 stack_size) :
-        managed_memory{std::make_unique<std::byte[]>(stack_size)},
-        memory{managed_memory.get()},
-        top{0},
-        size{stack_size},
-        frame_pointer{-1}
+    CallStack(u64 stack_size) : managed_memory{std::make_unique<std::byte[]>(stack_size)},
+                                memory{managed_memory.get()},
+                                top{0},
+                                size{stack_size},
+                                frame_pointer{0}
     {
     }
 
@@ -36,27 +33,27 @@ public:
     u64 get_size() const { return size; }
     u64 get_frame_pointer() const { return frame_pointer; }
 
-    template<typename T>
+    template <typename T>
     T read_local(u64 frame_address, u64 index)
     {
         static_assert(sizeof(T) == sizeof(Word), "T must have the same size as Word");
         return read<T>(memory, frame_address + sizeof(FrameData) + sizeof(Word) * index);
     }
 
-    template<typename T>
+    template <typename T>
     void write_local(u64 frame_address, u64 index, T value)
     {
         static_assert(sizeof(T) == sizeof(Word), "T must have the same size as Word");
         write(memory, frame_address + sizeof(FrameData) + sizeof(Word) * index, value);
     }
 
-    template<typename T>
+    template <typename T>
     T load_local(u64 index)
     {
         return read_local<T>(frame_pointer, index);
     }
 
-    template<typename T>
+    template <typename T>
     void store_local(u64 index, T value)
     {
         write_local(frame_pointer, index, value);
