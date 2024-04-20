@@ -7,13 +7,12 @@ Runtime::Runtime(
     std::vector<Function>&& function_table,
     std::vector<NativeFunction>&& native_function_table,
     std::vector<std::unique_ptr<Type>>&& type_table,
-    StringPool&& string_pool)
-    : configuration{configuration},
-      function_table{std::move(function_table)},
-      native_function_table{std::move(native_function_table)},
-      type_table{std::move(type_table)},
-      heap{configuration.heap_size},
-      string_pool(std::move(string_pool))
+    StringPool&& string_pool) : configuration{configuration},
+                                function_table{std::move(function_table)},
+                                native_function_table{std::move(native_function_table)},
+                                type_table{std::move(type_table)},
+                                heap{configuration.heap_size},
+                                string_pool(std::move(string_pool))
 {
 }
 

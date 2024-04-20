@@ -15,7 +15,6 @@ void new_thread(Runtime& runtime, Thread& thread)
     auto& cur_operand_stack = thread.get_operand_stack();
 
     Thread new_thread{runtime};
-
     auto& new_call_stack = new_thread.get_call_stack();
     auto& new_operand_stack = new_thread.get_operand_stack();
     auto& new_instruction_stream = new_thread.get_instruction_stream();
@@ -23,20 +22,18 @@ void new_thread(Runtime& runtime, Thread& thread)
 
     u64 closure_address = cur_operand_stack.pop<u64>();
     const auto& closure_header = heap.load<ClosureHeader>(closure_address);
-
     const auto& function = runtime.get_function_table()[closure_header.index];
     new_call_stack.push_frame(function, 0);
     new_instruction_stream.jump_to(function);
-
     for (u16 i = 0; i < function.capc; ++i) {
         u64 cap_address = heap.load<u64>(closure_address + sizeof(ClosureHeader) + sizeof(u64) * i);
         new_call_stack.store_local(i, cap_address);
     }
 
-    // std::thread platform_thread{[new_thread = std::move(new_thread)]() mutable {
-    //     new_thread.start();
-    // }};
-    // platform_thread.detach();
+    std::thread platform_thread{[new_thread = std::move(new_thread)]() mutable {
+        new_thread.start();
+    }};
+    platform_thread.detach();
 }
 
 void new_chan(Runtime& runtime, Thread& thread)

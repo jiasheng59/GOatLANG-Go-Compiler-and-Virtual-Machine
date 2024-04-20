@@ -1,0 +1,13 @@
+func count(start int, end int) {
+    var i int = start
+    for i <= end {
+        iprint(i)
+        i = i + 1
+    }
+}
+
+func main() {
+    go count(0, 10)
+    go count(10, 20)
+    go count(20, 30)
+}

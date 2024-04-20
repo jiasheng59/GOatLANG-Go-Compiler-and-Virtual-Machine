@@ -17,7 +17,6 @@ int main(int argc, const char* argv[]) {
     GOatLANGLexer lexer{&input};
     antlr4::CommonTokenStream tokens{&lexer};
     tokens.fill();
-    std::cout << "number of tokens: " << tokens.size() << std::endl;
     for (auto token : tokens.getTokens()) {
         std::cout << token->toString() << std::endl;
     }
@@ -27,9 +26,6 @@ int main(int argc, const char* argv[]) {
 
     Compiler compiler{};
     compiler.visitSourceFile(tree);
-    for (auto& [name, index] : compiler.function_indices) {
-        std::cout << name << ", " << index << std::endl;
-    }
     Configuration configuration = Runtime::default_configuration();
     configuration.init_function_index = compiler.function_indices.at("main");
     Runtime runtime{

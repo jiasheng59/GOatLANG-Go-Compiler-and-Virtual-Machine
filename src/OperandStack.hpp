@@ -1,8 +1,8 @@
 #ifndef OPERAND_STACK_HPP
 #define OPERAND_STACK_HPP
 
+#include <memory>
 #include <stdexcept>
-#include <iostream>
 
 #include "Common.hpp"
 
@@ -11,22 +11,15 @@ class OperandStack
 public:
     OperandStack() = default;
     OperandStack(const OperandStack&) = delete;
-    OperandStack(OperandStack&&) = delete;
+    OperandStack(OperandStack&&) = default;
     OperandStack& operator=(const OperandStack&) = delete;
-    OperandStack& operator=(OperandStack&&) = delete;
+    OperandStack& operator=(OperandStack&&) = default;
 
-    OperandStack(u64 stack_size) : memory{new std::byte[stack_size]},
+    OperandStack(u64 stack_size) : managed_memory{std::make_unique<std::byte[]>(stack_size)},
+                                   memory{managed_memory.get()},
                                    top{0},
                                    size{stack_size}
     {
-        std::cerr << memory << std::endl;
-    }
-
-    ~OperandStack()
-    {
-        std::cerr << "Destroying the operand stack" << std::endl;
-        std::cerr << memory << std::endl;
-        delete[] memory;
     }
 
     u64 get_size() const { return size; }
@@ -61,6 +54,7 @@ public:
     }
 
 private:
+    std::unique_ptr<std::byte[]> managed_memory;
     std::byte* memory;
     u64 size;
     u64 top;

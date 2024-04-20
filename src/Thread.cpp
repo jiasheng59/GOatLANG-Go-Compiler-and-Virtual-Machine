@@ -9,7 +9,6 @@ Thread::Thread(Runtime& runtime) : runtime{&runtime},
                                    call_stack{runtime.configuration.call_stack_size},
                                    operand_stack{runtime.configuration.operand_stack_size}
 {
-    std::cerr << "new thread!" << std::endl;
 }
 
 void Thread::initialize()
@@ -78,7 +77,6 @@ void Thread::run()
     const Instruction* ptr;
     while ((ptr = instruction_stream.next()) != nullptr) {
         const Instruction& instruction = *ptr;
-        // std::cerr << "Execute instruction: " << static_cast<u64>(instruction.opcode) << std::endl;
         switch (instruction.opcode) {
             case Opcode::nop:
                 break;
