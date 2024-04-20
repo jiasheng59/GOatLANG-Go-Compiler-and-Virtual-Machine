@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "Runtime.hpp"
 
 Runtime::Runtime(

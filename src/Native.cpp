@@ -10,6 +10,7 @@
 
 void new_thread(Runtime& runtime, Thread& thread)
 {
+    std::cerr << "new thread!" << std::endl;
     auto& cur_call_stack = thread.get_call_stack();
     auto& cur_operand_stack = thread.get_operand_stack();
 
@@ -32,14 +33,15 @@ void new_thread(Runtime& runtime, Thread& thread)
         new_call_stack.store_local(i, cap_address);
     }
 
-    std::thread platform_thread{[new_thread = std::move(new_thread)]() mutable {
-        new_thread.start();
-    }};
-    platform_thread.detach();
+    // std::thread platform_thread{[new_thread = std::move(new_thread)]() mutable {
+    //     new_thread.start();
+    // }};
+    // platform_thread.detach();
 }
 
 void new_chan(Runtime& runtime, Thread& thread)
 {
+    std::cerr << "new chan!" << std::endl;
     auto& operand_stack = thread.get_operand_stack();
     auto& heap = runtime.get_heap();
     auto& channel_manager = runtime.get_channel_manager();
@@ -58,6 +60,7 @@ void chan_send(Runtime& runtime, Thread& thread)
     // send to a channel
     // we expect the address of the channel
     // we can get the address of the channel from the operand stack I guess?
+    std::cerr << "chan send!" << std::endl;
     auto& operand_stack = thread.get_operand_stack();
     auto& heap = runtime.get_heap();
     auto& channel_manager = runtime.get_channel_manager();
@@ -73,6 +76,7 @@ void chan_send(Runtime& runtime, Thread& thread)
 void chan_recv(Runtime& runtime, Thread& thread)
 {
     // recv from a channel
+    std::cerr << "chan recv!" << std::endl;
     auto& operand_stack = thread.get_operand_stack();
     auto& heap = runtime.get_heap();
     auto& channel_manager = runtime.get_channel_manager();

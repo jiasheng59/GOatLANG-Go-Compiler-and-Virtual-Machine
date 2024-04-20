@@ -461,7 +461,9 @@ public:
         auto type = wrap_callable_type(node_types.at(go_type));
         node_types.try_emplace(ctx, type);
         type_environment[type_environment.size() - 1].try_emplace(name, type);
-        visitExpression(ctx->expression());
+        if (auto expression = ctx->expression(); expression) {
+            visitExpression(expression);
+        }
         return {};
     }
 
@@ -1121,12 +1123,12 @@ public:
         code.push_back(Instruction{.opcode = Opcode::new_, .index = type->index});
         code.push_back(Instruction{.opcode = Opcode::dup});
         code.push_back(Instruction{.opcode = Opcode::push, .value = bitcast<u64, Word>(function_index)});
-        code.push_back(Instruction{.opcode = Opcode::wload, .index = 0});
+        code.push_back(Instruction{.opcode = Opcode::wstore, .index = 0});
         u64 slot = 1;
         for (auto ptr : variable_frame.captures) {
             code.push_back(Instruction{.opcode = Opcode::dup});
             code.push_back(Instruction{.opcode = Opcode::load, .index = ptr->second.index});
-            code.push_back(Instruction{.opcode = Opcode::wload, .index = slot});
+            code.push_back(Instruction{.opcode = Opcode::wstore, .index = slot});
             slot++;
         }
         return {};
