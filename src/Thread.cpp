@@ -1,3 +1,4 @@
+#include <iostream>
 #include <mutex>
 
 #include "Runtime.hpp"
@@ -8,6 +9,7 @@ Thread::Thread(Runtime& runtime) : runtime{&runtime},
                                    call_stack{runtime.configuration.call_stack_size},
                                    operand_stack{runtime.configuration.operand_stack_size}
 {
+    std::cerr << "new thread!" << std::endl;
 }
 
 void Thread::initialize()
@@ -76,6 +78,7 @@ void Thread::run()
     const Instruction* ptr;
     while ((ptr = instruction_stream.next()) != nullptr) {
         const Instruction& instruction = *ptr;
+        std::cerr << "Execute instruction: " << static_cast<u64>(instruction.opcode) << std::endl;
         switch (instruction.opcode) {
             case Opcode::nop:
                 break;
@@ -266,6 +269,7 @@ void Thread::run()
                 break;
             }
             case Opcode::invoke_dynamic: {
+                std::cerr << "Thread::invoke_dynamic" << std::endl;
                 u64 address = operand_stack.pop<u64>();
                 auto& closure_header = heap.load<ClosureHeader>(address);
                 const auto& function = function_table[closure_header.index];
