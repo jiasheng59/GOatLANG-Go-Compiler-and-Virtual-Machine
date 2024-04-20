@@ -95,13 +95,19 @@ struct VariableFrame
 class VariableAnalyzer : public GOatLANGBaseVisitor
 {
 public:
+    std::unordered_map<std::string, u64>& function_indices;
+    std::unordered_map<std::string, u64>& native_function_indices;
     std::unordered_map<void*, VariableFrame>& variable_frames;
     std::unordered_map<void*, Function*>& node_functions;
     VariableFrame* current_frame;
 
     VariableAnalyzer(
+        std::unordered_map<std::string, u64>& function_indices,
+        std::unordered_map<std::string, u64>& native_function_indices,
         std::unordered_map<void*, VariableFrame>& variable_frames,
-        std::unordered_map<void*, Function*>& node_functions) : variable_frames{variable_frames},
+        std::unordered_map<void*, Function*>& node_functions) : function_indices{function_indices},
+                                                                native_function_indices{native_function_indices},
+                                                                variable_frames{variable_frames},
                                                                 node_functions{node_functions},
                                                                 current_frame{nullptr}
     {
@@ -123,12 +129,15 @@ public:
         {
             u64 index = 0;
             for (auto ptr : current_frame->captures) {
+                std::cerr << "variable name: " << ptr->first << std::endl;
                 ptr->second.index = index++;
             }
             for (auto ptr : current_frame->parameters) {
+                std::cerr << "variable name: " << ptr->first << std::endl;
                 ptr->second.index = index++;
             }
             for (auto ptr : current_frame->locals) {
+                std::cerr << "variable name: " << ptr->first << std::endl;
                 ptr->second.index = index++;
             }
         }
@@ -194,6 +203,9 @@ public:
     virtual std::any visitOperandName(GOatLANGParser::OperandNameContext* ctx) override
     {
         auto name = ctx->IDENTIFIER()->getText();
+        if (function_indices.contains(name) || native_function_indices.contains(name)) {
+            return {};
+        }
         auto& current_variables = current_frame->variables;
         if (current_variables.contains(name)) {
             return {};
@@ -271,12 +283,6 @@ public:
                                                                      arg_types{},
                                                                      function_name{nullptr}
     {
-        register_type(IntType{});
-        register_type(FloatType{});
-        register_type(BoolType{});
-        register_type(StringType{});
-        register_type(NativeFunctionType{});
-        register_type(ChannelType{nullptr});
         auto& top_level_frame = type_environment.emplace_back();
         for (auto& [name, _] : native_function_indices) {
             std::cerr << "native name: " << name << std::endl;
@@ -579,6 +585,7 @@ public:
     virtual std::any visitBinaryExpr(GOatLANGParser::BinaryExprContext* ctx) override
     {
         std::cerr << "TypeAnnotator::visitBinaryExpr" << std::endl;
+        std::cerr << ctx->getText() << std::endl;
         auto binary_op = ctx->binary_op->getText();
         auto left = ctx->expression(0);
         auto right = ctx->expression(1);
@@ -590,6 +597,8 @@ public:
         auto right_type = node_types.at(right);
 
         if (left_type != right_type) {
+            std::cerr << left_type->get_name() << std::endl;
+            std::cerr << right_type->get_name() << std::endl;
             throw std::runtime_error("binaryexpr: operands have different types");
         }
 
@@ -790,6 +799,13 @@ public:
 
     Compiler()
     {
+        register_type(IntType{});
+        register_type(FloatType{});
+        register_type(BoolType{});
+        register_type(StringType{});
+        register_type(NativeFunctionType{});
+        register_type(ChannelType{nullptr});
+
         native_function_table.push_back(new_thread);
         native_function_table.push_back(new_chan);
         native_function_table.push_back(chan_send);
@@ -819,7 +835,11 @@ public:
         std::cerr << "Compiler::visitSourceFile" << std::endl;
         FunctionScanner scanner{function_table, function_indices, node_functions};
         scanner.visitSourceFile(ctx);
-        VariableAnalyzer analyzer{variable_frames, node_functions};
+        VariableAnalyzer analyzer{
+            function_indices,
+            native_function_indices,
+            variable_frames,
+            node_functions};
         analyzer.visitSourceFile(ctx);
         TypeAnnotator annotator{
             native_function_indices,

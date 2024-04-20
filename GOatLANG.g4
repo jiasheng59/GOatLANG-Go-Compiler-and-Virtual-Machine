@@ -413,6 +413,7 @@ INT_LIT
 //decimal_lit = ( "1" ... "9" ) { decimal_digit } .
 fragment DECIMAL_LIT
     : [1-9] DECIMAL_DIGIT*
+    | '0'
     ;
 
 // Floating-point literals

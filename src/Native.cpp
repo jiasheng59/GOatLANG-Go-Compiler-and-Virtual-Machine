@@ -95,17 +95,17 @@ void sprint(Runtime& runtime, Thread& thread)
     u64 string_address = thread.get_operand_stack().pop<u64>();
     const auto& string = runtime.get_heap().load<NativeString>(string_address);
     const auto& native_string = runtime.get_string_pool().get(string.index);
-    std::cout << native_string;
+    std::cout << native_string << std::endl;
 }
 
 void iprint(Runtime& runtime, Thread& thread)
 {
     i64 i = thread.get_operand_stack().pop<i64>();
-    std::cout << i;
+    std::cout << i << std::endl;
 }
 
 void fprint(Runtime& runtime, Thread& thread)
 {
     f64 f = thread.get_operand_stack().pop<f64>();
-    std::cout << f;
+    std::cout << f << std::endl;
 }

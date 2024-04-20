@@ -1,6 +1,7 @@
 #ifndef OPERAND_STACK_HPP
 #define OPERAND_STACK_HPP
 
+#include <stdexcept>
 #include <iostream>
 
 #include "Common.hpp"
@@ -11,7 +12,6 @@ public:
     OperandStack() = default;
     OperandStack(const OperandStack&) = delete;
     OperandStack(OperandStack&&) = delete;
-
     OperandStack& operator=(const OperandStack&) = delete;
     OperandStack& operator=(OperandStack&&) = delete;
 
@@ -19,11 +19,13 @@ public:
                                    top{0},
                                    size{stack_size}
     {
+        std::cerr << memory << std::endl;
     }
 
     ~OperandStack()
     {
         std::cerr << "Destroying the operand stack" << std::endl;
+        std::cerr << memory << std::endl;
         delete[] memory;
     }
 
@@ -33,6 +35,9 @@ public:
     T pop()
     {
         static_assert(sizeof(T) == sizeof(Word), "T must have the same size as Word");
+        if (top == 0) {
+            throw std::runtime_error("operand stack underflow!");
+        }
         top -= sizeof(T);
         return read<T>(memory, top);
     }
@@ -48,6 +53,9 @@ public:
     void push(T value)
     {
         static_assert(sizeof(T) == sizeof(Word), "T must have the same size as Word");
+        if (top >= size) {
+            throw std::runtime_error("operand stack overflow!");
+        }
         write(memory, top, value);
         top += sizeof(T);
     }

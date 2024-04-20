@@ -78,7 +78,7 @@ void Thread::run()
     const Instruction* ptr;
     while ((ptr = instruction_stream.next()) != nullptr) {
         const Instruction& instruction = *ptr;
-        std::cerr << "Execute instruction: " << static_cast<u64>(instruction.opcode) << std::endl;
+        // std::cerr << "Execute instruction: " << static_cast<u64>(instruction.opcode) << std::endl;
         switch (instruction.opcode) {
             case Opcode::nop:
                 break;
