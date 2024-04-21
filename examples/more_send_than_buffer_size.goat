@@ -3,7 +3,7 @@ func foo(c chan int) int {
     c <- 10
     c <- 100
     return 0
-} 
+}
 
 func main() {
     var c chan int = make(chan int, 2)

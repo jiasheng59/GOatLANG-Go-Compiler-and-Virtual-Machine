@@ -1,4 +1,4 @@
-func main() int {
+func main() {
     var a int = -1
     var foo func() int = func() int {
         var b int = 10
@@ -6,5 +6,5 @@ func main() int {
             return a + b
         }()
     }
-    return foo();
+    iprint(foo())
 }

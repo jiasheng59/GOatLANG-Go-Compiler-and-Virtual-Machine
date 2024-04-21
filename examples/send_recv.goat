@@ -3,7 +3,7 @@ func foo(c chan int) {
 }
 
 func main() {
-    var c chan int = make(chan int, 10);
+    var c chan int = make(chan int, 10)
     go foo(c)
     var x int = <-c
     iprint(x)

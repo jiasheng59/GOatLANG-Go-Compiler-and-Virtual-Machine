@@ -12,10 +12,10 @@ static std::mutex io_mutex{};
 
 void new_thread(Runtime& runtime, Thread& thread)
 {
-    {
-        std::lock_guard{io_mutex};
-        std::cerr << "new thread!" << std::endl;
-    }
+    // {
+    //     std::lock_guard{io_mutex};
+    //     std::cerr << "new thread!" << std::endl;
+    // }
     auto& cur_call_stack = thread.get_call_stack();
     auto& cur_operand_stack = thread.get_operand_stack();
 
@@ -63,10 +63,10 @@ void new_chan(Runtime& runtime, Thread& thread)
     u64 chan_address = heap.allocate(chan_type, 1);
     u64 chan_index = channel_manager.new_channel(chan_size);
     heap.store(chan_address, chan_index);
-    {
-        std::lock_guard{io_mutex};
-        std::cerr << "new chan!" << std::endl;
-    }
+    // {
+    //     std::lock_guard{io_mutex};
+    //     std::cerr << "new chan " << chan_index << std::endl;
+    // }
     operand_stack.push(chan_address);
 }
 
@@ -82,10 +82,10 @@ void chan_send(Runtime& runtime, Thread& thread)
     u64 item_address = operand_stack.pop<u64>();
     u64 chan_address = operand_stack.pop<u64>();
     u64 chan_index = heap.load<u64>(chan_address);
-    {
-        std::lock_guard{io_mutex};
-        std::cerr << "chan send!" << std::endl;
-    }
+    // {
+    //     std::lock_guard{io_mutex};
+    //     std::cerr << "chan send " << chan_index << std::endl;
+    // }
     auto& blocking_queue = channel_manager.get(chan_index);
     blocking_queue.push(item_address);
 }
@@ -99,10 +99,10 @@ void chan_recv(Runtime& runtime, Thread& thread)
 
     u64 chan_address = operand_stack.pop<u64>();
     u64 chan_index = heap.load<u64>(chan_address);
-    {
-        std::lock_guard{io_mutex};
-        std::cerr << "chan recv!" << std::endl;
-    }
+    // {
+    //     std::lock_guard{io_mutex};
+    //     std::cerr << "chan recv " << chan_index << std::endl;
+    // }
     auto& blocking_queue = channel_manager.get(chan_index);
 
     u64 item_address;
@@ -117,7 +117,7 @@ void sprint(Runtime& runtime, Thread& thread)
     const auto& native_string = runtime.get_string_pool().get(string.index);
     {
         std::lock_guard{io_mutex};
-        std::cerr << native_string << std::endl;
+        std::cout << native_string << std::endl;
     }
 }
 
@@ -126,7 +126,7 @@ void iprint(Runtime& runtime, Thread& thread)
     i64 i = thread.get_operand_stack().pop<i64>();
     {
         std::lock_guard{io_mutex};
-        std::cerr << i << std::endl;
+        std::cout << i << std::endl;
     }
 }
 
@@ -135,6 +135,6 @@ void fprint(Runtime& runtime, Thread& thread)
     f64 f = thread.get_operand_stack().pop<f64>();
     {
         std::lock_guard{io_mutex};
-        std::cerr << f << std::endl;
+        std::cout << f << std::endl;
     }
 }

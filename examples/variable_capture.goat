@@ -3,5 +3,5 @@ func main() {
     var c int = func(b int) int {
         return a + b
     }(5)
-    iprintln(c)
+    iprint(c)
 }

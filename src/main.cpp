@@ -19,7 +19,7 @@ int main(int argc, const char* argv[]) {
     antlr4::CommonTokenStream tokens{&lexer};
     tokens.fill();
     for (auto token : tokens.getTokens()) {
-        // std::cout << token->toString() << std::endl;
+        std::cout << token->toString() << std::endl;
     }
     GOatLANGParser parser{&tokens};
     auto tree = parser.sourceFile();

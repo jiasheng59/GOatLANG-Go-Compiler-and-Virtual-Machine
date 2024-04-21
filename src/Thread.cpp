@@ -1,5 +1,7 @@
 #include <mutex>
 
+#include <iostream>
+
 #include "Runtime.hpp"
 #include "Thread.hpp"
 
@@ -270,11 +272,12 @@ void Thread::run()
                 u64 address = operand_stack.pop<u64>();
                 auto& closure_header = heap.load<ClosureHeader>(address);
                 const auto& function = function_table[closure_header.index];
+                INVOKE_FUNCTION(function);
                 for (u16 i = 0; i < function.capc; ++i) {
                     u64 cap_address = heap.load<u64>(address + sizeof(ClosureHeader) + sizeof(u64) * i);
+                    // std::cerr << "cap address: " << cap_address << std::endl;
                     call_stack.store_local(i, cap_address);
                 }
-                INVOKE_FUNCTION(function);
                 break;
             }
             case Opcode::invoke_native: {

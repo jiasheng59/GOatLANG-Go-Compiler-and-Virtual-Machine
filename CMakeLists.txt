@@ -9,7 +9,8 @@ find_package(Java COMPONENTS Runtime REQUIRED)
 find_package(Threads REQUIRED)
 
 if(NOT ANTLR_LIB)
-    set(ANTLR_LIB ${PROJECT_SOURCE_DIR}/libantlr4-runtime.a)
+    set(ANTLR_LIB /usr/local/lib/libantlr4-runtime.a)
+    # set(ANTLR_LIB ${PROJECT_SOURCE_DIR}/libantlr4-runtime.a)
 endif()
 
 set(GOatLANG_GENERATED_SRC

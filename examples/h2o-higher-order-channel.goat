@@ -1,0 +1,53 @@
+func main() {
+    var h func() = func() {
+        sprint("H atom is bonding")
+    }
+    var o func() = func() {
+        sprint("O atom is bonding")
+    }
+
+    var hPromises chan chan int = make(chan chan int, 10)
+    var oPromises chan chan int = make(chan chan int, 10)
+
+    var done chan int = make(chan int, 10)
+    var n int = 5
+
+    var handleH func() = func() {
+        var i int = 0
+        for i < n {
+            var hp chan int = make(chan int, 1)
+            hPromises <- hp
+            <-hp
+            h()
+            var op chan int = <-oPromises
+            op <- 1
+            i = i + 1
+        }
+        done <- 1
+    }
+    var handleO func() = func() {
+        var i int = 0
+        for i < n {
+            var hp chan int
+            hp = <-hPromises
+            hp <- 1
+            hp = <-hPromises
+            hp <- 1
+            o()
+            var op1 chan int = make(chan int, 1)
+            var op2 chan int = make(chan int, 1)
+            oPromises <- op1
+            oPromises <- op2
+            <-op1
+            <-op2
+            i = i + 1
+        }
+        done <- 1
+    }
+    go handleO()
+    go handleH()
+    go handleH()
+    <-done
+    <-done
+    <-done
+}

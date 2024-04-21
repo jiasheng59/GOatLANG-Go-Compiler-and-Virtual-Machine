@@ -276,26 +276,7 @@ primaryExpr
     ;
 
 expression
-    : expression binary_op = (
-          '||'
-        | '&&'
-        | '=='
-        | '!='
-        | '<'
-        | '<='
-        | '>'
-        | '>='
-        | '+'
-        | '-'
-        | '|'
-        | '^'
-        | '*'
-        | '/'
-        | '%'
-        | '<<'
-        | '>>'
-        | '&'
-    ) expression                        #binaryExpr
+    : primaryExpr                               #primaryExpr_
     | unary_op = (
           '+'
         | '-'
@@ -304,8 +285,31 @@ expression
         | '*'
         | '&'
         | '<-'
-    ) expression                        #unaryExpr
-    | primaryExpr                       #primaryExpr_
+    ) expression                                #unaryExpr
+    | expression binary_op = (
+          '*'
+        | '/'
+        | '%'
+        | '<<'
+        | '>>'
+        | '&'
+    ) expression                                #binaryExpr
+    | expression binary_op = (
+          '+'
+        | '-'
+        | '|'
+        | '^'
+    ) expression                                #binaryExpr
+    | expression binary_op = (
+          '=='
+        | '!='
+        | '<'
+        | '<='
+        | '>'
+        | '>='
+    ) expression                                #binaryExpr
+    | expression binary_op = '&&' expression    #binaryExpr
+    | expression binary_op = '||' expression    #binaryExpr
     ;
 
 arguments
