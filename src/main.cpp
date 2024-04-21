@@ -27,7 +27,8 @@ int main(int argc, const char* argv[]) {
     Compiler compiler{};
     compiler.visitSourceFile(tree);
     Configuration configuration = Runtime::default_configuration();
-    configuration.init_function_index = compiler.function_indices.at("main");
+    configuration.main_function_index = compiler.function_indices.at("main");
+    configuration.channel_type = compiler.type_names.at("chan");
     Runtime runtime{
         configuration,
         std::move(compiler.function_table),

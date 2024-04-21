@@ -19,17 +19,17 @@ class FunctionScanner : public GOatLANGBaseVisitor
 public:
     std::vector<Function>& function_table;
     std::unordered_map<std::string, u64>& function_indices;
-    std::unordered_map<void*, Function*>& node_functions;
+    std::unordered_map<void*, u64>& node_functions;
 
-    Function* current_function;
+    u64 current_function_index;
 
     FunctionScanner(
         std::vector<Function>& function_table,
         std::unordered_map<std::string, u64>& function_indices,
-        std::unordered_map<void*, Function*>& node_functions) : function_table{function_table},
-                                                                function_indices{function_indices},
-                                                                node_functions{node_functions},
-                                                                current_function{nullptr}
+        std::unordered_map<void*, u64>& node_functions) : function_table{function_table},
+                                                          function_indices{function_indices},
+                                                          node_functions{node_functions},
+                                                          current_function_index{}
     {
     }
 
@@ -43,28 +43,26 @@ public:
 
     virtual std::any visitFunctionDecl(GOatLANGParser::FunctionDeclContext* ctx) override
     {
-        u64 function_index = function_table.size();
-        auto& function = function_table.emplace_back(Function{.index = function_index});
-        function_indices.try_emplace(ctx->IDENTIFIER()->getText(), function_index);
-        node_functions.try_emplace(ctx, &function);
-        current_function = &function;
+        current_function_index = function_table.size();
+        function_table.emplace_back(Function{.index = current_function_index});
+        function_indices.try_emplace(ctx->IDENTIFIER()->getText(), current_function_index);
+        node_functions.try_emplace(ctx, current_function_index);
         visitFunction(ctx->function());
         return {};
     }
 
     virtual std::any visitFunctionLit(GOatLANGParser::FunctionLitContext* ctx) override
     {
-        u64 function_index = function_table.size();
-        auto& function = function_table.emplace_back(Function{.index = function_index});
-        node_functions.try_emplace(ctx, &function);
-        current_function = &function;
+        current_function_index = function_table.size();
+        function_table.emplace_back(Function{.index = current_function_index});
+        node_functions.try_emplace(ctx, current_function_index);
         visitFunction(ctx->function());
         return {};
     }
 
     virtual std::any visitFunction(GOatLANGParser::FunctionContext* ctx) override
     {
-        node_functions.try_emplace(ctx, current_function);
+        node_functions.try_emplace(ctx, current_function_index);
         return visitChildren(ctx);
     }
 };
@@ -79,7 +77,6 @@ enum class VariableCategory
 struct Variable
 {
     VariableCategory category;
-    Type* type = nullptr;
     u64 index = 0;
 };
 
@@ -95,21 +92,25 @@ struct VariableFrame
 class VariableAnalyzer : public GOatLANGBaseVisitor
 {
 public:
+    std::vector<Function>& function_table;
     std::unordered_map<std::string, u64>& function_indices;
+    std::unordered_map<void*, u64>& node_functions;
     std::unordered_map<std::string, u64>& native_function_indices;
     std::unordered_map<void*, VariableFrame>& variable_frames;
-    std::unordered_map<void*, Function*>& node_functions;
     VariableFrame* current_frame;
 
     VariableAnalyzer(
+        std::vector<Function>& function_table,
         std::unordered_map<std::string, u64>& function_indices,
+        std::unordered_map<void*, u64>& node_functions,
         std::unordered_map<std::string, u64>& native_function_indices,
-        std::unordered_map<void*, VariableFrame>& variable_frames,
-        std::unordered_map<void*, Function*>& node_functions) : function_indices{function_indices},
-                                                                native_function_indices{native_function_indices},
-                                                                variable_frames{variable_frames},
-                                                                node_functions{node_functions},
-                                                                current_frame{nullptr}
+        std::unordered_map<void*, VariableFrame>& variable_frames)
+        : function_table{function_table},
+          function_indices{function_indices},
+          node_functions{node_functions},
+          native_function_indices{native_function_indices},
+          variable_frames{variable_frames},
+          current_frame{nullptr}
     {
     }
 
@@ -122,7 +123,6 @@ public:
             current_frame = &it->second;
         }
         this->current_frame = current_frame;
-
         visitSignature(ctx->signature());
         visitBlock(ctx->block());
 
@@ -139,6 +139,11 @@ public:
             }
         }
 
+        u64 function_index = node_functions.at(ctx);
+        Function& function = function_table[function_index];
+        function.capc = current_frame->captures.size();
+        function.argc = current_frame->parameters.size();
+        function.varc = current_frame->variables.size();
         this->current_frame = enclosing_frame;
         if (!enclosing_frame) {
             return {};
@@ -164,10 +169,6 @@ public:
                 enclosing_variable.category = VariableCategory::escaped;
             }
         }
-        Function* function = node_functions.at(ctx);
-        function->capc = current_frame->captures.size();
-        function->argc = current_frame->parameters.size();
-        function->varc = current_frame->variables.size();
         return {};
     }
 
@@ -238,6 +239,7 @@ class TypeAnnotator : public GOatLANGBaseVisitor
         u64 type_index = type_table.size();
         auto smart_ptr = std::unique_ptr<Type>(new T{type});
         auto raw_ptr = smart_ptr.get();
+        raw_ptr->index = type_index;
         type_table.push_back(std::move(smart_ptr));
         type_names.try_emplace(name, raw_ptr);
         return raw_ptr;
@@ -268,13 +270,14 @@ public:
         std::vector<std::unique_ptr<Type>>& type_table,
         std::unordered_map<std::string, Type*>& type_names,
         std::unordered_map<void*, Type*>& node_types,
-        std::unordered_map<void*, VariableFrame>& variable_frames) : type_table{type_table},
-                                                                     type_names{type_names},
-                                                                     node_types{node_types},
-                                                                     variable_frames{variable_frames},
-                                                                     type_environment{},
-                                                                     arg_types{},
-                                                                     function_name{nullptr}
+        std::unordered_map<void*, VariableFrame>& variable_frames)
+        : type_table{type_table},
+          type_names{type_names},
+          node_types{node_types},
+          variable_frames{variable_frames},
+          type_environment{},
+          arg_types{},
+          function_name{nullptr}
     {
         auto& top_level_frame = type_environment.emplace_back();
         auto new_chan_type = register_type(FunctionType{{type_names.at("int")}, type_names.at("chan")});
@@ -657,8 +660,7 @@ class FunctionResolver : public GOatLANGBaseVisitor
 {
     std::vector<Function>& function_table;
     std::unordered_map<std::string, u64>& function_indices;
-    std::unordered_map<void*, Function*>& node_functions;
-
+    std::unordered_map<void*, u64>& node_functions;
     std::unordered_map<std::string, u64>& native_function_indices;
     std::unordered_map<void*, u64>& node_native_functions;
 
@@ -666,13 +668,14 @@ public:
     FunctionResolver(
         std::vector<Function>& function_table,
         std::unordered_map<std::string, u64>& function_indices,
-        std::unordered_map<void*, Function*>& node_functions,
+        std::unordered_map<void*, u64>& node_functions,
         std::unordered_map<std::string, u64>& native_function_indices,
-        std::unordered_map<void*, u64>& node_native_functions) : function_table{function_table},
-                                                                 function_indices{function_indices},
-                                                                 node_functions{node_functions},
-                                                                 native_function_indices{native_function_indices},
-                                                                 node_native_functions{node_native_functions}
+        std::unordered_map<void*, u64>& node_native_functions)
+        : function_table{function_table},
+          function_indices{function_indices},
+          node_functions{node_functions},
+          native_function_indices{native_function_indices},
+          node_native_functions{node_native_functions}
     {
     }
 
@@ -711,8 +714,7 @@ public:
         auto name = ctx->IDENTIFIER()->getText();
         if (function_indices.contains(name)) {
             u64 function_index = function_indices.at(name);
-            auto& function = function_table[function_index];
-            node_functions.try_emplace(ctx, &function);
+            node_functions.try_emplace(ctx, function_index);
         } else if (native_function_indices.contains(name)) {
             u64 native_function_index = native_function_indices.at(name);
             node_native_functions.try_emplace(ctx, native_function_index);
@@ -739,7 +741,7 @@ public:
 
     std::vector<Function> function_table;
     std::unordered_map<std::string, u64> function_indices;
-    std::unordered_map<void*, Function*> node_functions;
+    std::unordered_map<void*, u64> node_functions;
     Function* current_function = nullptr;
     FunctionContext* current_function_context = nullptr;
 
@@ -767,6 +769,7 @@ public:
         u64 type_index = type_table.size();
         auto smart_ptr = std::unique_ptr<Type>(new T{type});
         auto raw_ptr = smart_ptr.get();
+        raw_ptr->index = type_index;
         type_table.push_back(std::move(smart_ptr));
         type_names.try_emplace(name, raw_ptr);
         return raw_ptr;
@@ -809,10 +812,11 @@ public:
         FunctionScanner scanner{function_table, function_indices, node_functions};
         scanner.visitSourceFile(ctx);
         VariableAnalyzer analyzer{
+            function_table,
             function_indices,
+            node_functions,
             native_function_indices,
-            variable_frames,
-            node_functions};
+            variable_frames};
         analyzer.visitSourceFile(ctx);
         TypeAnnotator annotator{type_table, type_names, node_types, variable_frames};
         annotator.visitSourceFile(ctx);
@@ -1033,6 +1037,11 @@ public:
         return {};
     }
 
+    virtual std::any visitGoType(GOatLANGParser::GoTypeContext* ctx) override
+    {
+        return {};
+    }
+
     virtual std::any visitBasicLit(GOatLANGParser::BasicLitContext* ctx) override
     {
         Word word;
@@ -1112,7 +1121,7 @@ public:
     virtual std::any visitFunctionLit(GOatLANGParser::FunctionLitContext* ctx) override
     {
         Function* saved_function = current_function;
-        current_function = node_functions.at(ctx);
+        current_function = &function_table[node_functions.at(ctx)];
         u64 function_index = current_function->index;
         auto function_ctx = ctx->function();
         visitFunction(function_ctx);
@@ -1260,8 +1269,8 @@ public:
         }
 
         if (node_functions.contains(primary_expr)) {
-            auto function = node_functions.at(primary_expr);
-            code.push_back(Instruction{.opcode = Opcode::invoke_static, .index = function->index});
+            u64 function_index = node_functions.at(primary_expr);
+            code.push_back(Instruction{.opcode = Opcode::invoke_static, .index = function_index});
             return {};
         }
 

@@ -39,7 +39,10 @@ public:
     T peek()
     {
         static_assert(sizeof(T) == sizeof(Word), "T must have the same size as Word");
-        return read<T>(memory, top);
+        if (top == 0) {
+            throw std::runtime_error("operand stack underflow!");
+        }
+        return read<T>(memory, top - sizeof(T));
     }
 
     template <typename T>

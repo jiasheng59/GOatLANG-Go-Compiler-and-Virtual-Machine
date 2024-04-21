@@ -1,4 +1,3 @@
-#include <iostream>
 #include <mutex>
 
 #include "Runtime.hpp"
@@ -65,7 +64,7 @@ void Thread::run()
     Heap& heap = runtime->get_heap();
     std::vector<Function>& function_table = runtime->get_function_table();
     std::vector<NativeFunction>& native_function_table = runtime->get_native_function_table();
-    auto& type_table = runtime->type_table;
+    auto& type_table = runtime->get_type_table();
 
 #define INVOKE_FUNCTION(function)                                       \
     do {                                                                \
@@ -77,6 +76,7 @@ void Thread::run()
     const Instruction* ptr;
     while ((ptr = instruction_stream.next()) != nullptr) {
         const Instruction& instruction = *ptr;
+        // std::cerr << static_cast<u64>(instruction.opcode) << std::endl;
         switch (instruction.opcode) {
             case Opcode::nop:
                 break;
@@ -267,7 +267,6 @@ void Thread::run()
                 break;
             }
             case Opcode::invoke_dynamic: {
-                std::cerr << "Thread::invoke_dynamic" << std::endl;
                 u64 address = operand_stack.pop<u64>();
                 auto& closure_header = heap.load<ClosureHeader>(address);
                 const auto& function = function_table[closure_header.index];
