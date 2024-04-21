@@ -1,0 +1,10 @@
+func main() int {
+    var a int = -1
+    var foo func() int = func() int {
+        var b int = 10
+        return func() int {
+            return a + b
+        }()
+    }
+    return foo();
+}

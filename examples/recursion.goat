@@ -1,0 +1,12 @@
+func fact(i int) int {
+    if i <= 1 {
+        return 1
+    } else {
+        return i * fact(i - 1)
+    }
+}
+
+func main() {
+    var y int = fact(5)
+    iprint(y)
+}

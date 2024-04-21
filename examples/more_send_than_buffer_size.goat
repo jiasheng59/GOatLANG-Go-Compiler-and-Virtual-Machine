@@ -1,0 +1,13 @@
+func foo(c chan int) int {
+    c <- 1
+    c <- 10
+    c <- 100
+    return 0
+} 
+
+func main() {
+    var c chan int = make(chan int, 2)
+    go foo(c)
+    var x int = <-c + <-c + <-c
+    iprint(x)
+}
