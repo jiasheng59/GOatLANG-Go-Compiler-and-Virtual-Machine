@@ -53,6 +53,9 @@ set(GOatLANG_SRC
     ${GOatLANG_GENERATED_SRC}
 )
 
+set(CXX_DEBUG_FLAGS "-g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_DEBUG_FLAGS}")
+
 add_executable(GOatLANG ${GOatLANG_SRC})
 add_dependencies(GOatLANG GenerateParser)
 

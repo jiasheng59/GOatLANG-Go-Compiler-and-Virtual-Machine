@@ -162,19 +162,20 @@ public:
     }
 };
 
-class NativeFunctionType : public Type
-{
-public:
-    NativeFunctionType() : Type{0} {}
+// class NativeFunctionType : public Type
+// {
+// public:
+//     NativeFunctionType() : Type{0} {}
 
-    virtual std::string get_name() const override { return "native function"; }
-};
+//     virtual std::string get_name() const override { return "native function"; }
+// };
 
 class ClosureType : public Type
 {
 public:
     FunctionType* function_type;
     u64 capc;
+
     ClosureType(FunctionType* function_type, u64 capc) : Type{8 + capc * 8},
                                                          function_type{function_type},
                                                          capc{capc}
@@ -192,9 +193,7 @@ class CallableType : public Type
 public:
     FunctionType* function_type;
 
-    CallableType(FunctionType* function_type) : Type{8}, function_type{function_type}
-    {
-    }
+    CallableType(FunctionType* function_type) : Type{8}, function_type{function_type} {}
 
     virtual std::string get_name() const override
     {
@@ -214,10 +213,8 @@ class ChannelType : public Type
 {
 public:
     Type* element_type;
-    ChannelType(Type* element_type) : Type{8},
-                                      element_type{element_type}
-    {
-    }
+
+    ChannelType(Type* element_type) : Type{8}, element_type{element_type} {}
 
     virtual std::string get_name() const override
     {

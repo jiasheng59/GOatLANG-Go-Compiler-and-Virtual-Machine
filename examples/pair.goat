@@ -1,0 +1,22 @@
+func pair(x int, y int) func(func(int, int) int) int {
+    // no `any` type at the moment, the type checker need to be extended
+    return func(selector func(int, int) int) int {
+        return selector(x, y)
+    }
+}
+
+func fst(x int, y int) int {
+    return x
+}
+
+func snd(x int, y int) int {
+    return y
+}
+
+func main() {
+    var p func(func(int, int) int) int = pair(0, 1)
+    sprint("1st component of the pair")
+    iprint(p(fst))
+    sprint("2nd component of the pair")
+    iprint(p(snd))
+}

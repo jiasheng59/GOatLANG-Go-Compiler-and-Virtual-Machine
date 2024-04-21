@@ -1,0 +1,20 @@
+func appN(n int) func(func(int) int, int) int {
+    return func(f func(int) int, x int) int {
+        var i int = 0
+        for i < n {
+            x = f(x)
+            i = i + 1
+        }
+        return x
+    }
+}
+
+func succ(x int) int {
+    return x + 1
+}
+
+func main() {
+    var app10 func(func(int) int, int) int = appN(10)
+    var v10 int = app10(succ, 0)
+    iprint(v10)
+}

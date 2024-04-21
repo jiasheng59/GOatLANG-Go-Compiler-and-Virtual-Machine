@@ -1,0 +1,16 @@
+func count(start int, end int, done chan int) {
+    var i int = start
+    for i <= end {
+        iprint(i)
+        i = i + 1
+    }
+    done <- 1
+}
+
+func main() {
+    var done chan int = make(chan int, 3)
+    go count(0, 10, done)
+    go count(10, 20, done)
+    <-done
+    <-done
+}

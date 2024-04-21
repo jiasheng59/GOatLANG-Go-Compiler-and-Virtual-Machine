@@ -19,17 +19,17 @@ class FunctionScanner : public GOatLANGBaseVisitor
 public:
     std::vector<Function>& function_table;
     std::unordered_map<std::string, u64>& function_indices;
-    std::unordered_map<void*, Function*>& node_functions;
+    std::unordered_map<void*, u64>& node_functions;
 
-    Function* current_function;
+    u64 current_function_index;
 
     FunctionScanner(
         std::vector<Function>& function_table,
         std::unordered_map<std::string, u64>& function_indices,
-        std::unordered_map<void*, Function*>& node_functions) : function_table{function_table},
-                                                                function_indices{function_indices},
-                                                                node_functions{node_functions},
-                                                                current_function{nullptr}
+        std::unordered_map<void*, u64>& node_functions) : function_table{function_table},
+                                                          function_indices{function_indices},
+                                                          node_functions{node_functions},
+                                                          current_function_index{}
     {
     }
 
@@ -43,28 +43,26 @@ public:
 
     virtual std::any visitFunctionDecl(GOatLANGParser::FunctionDeclContext* ctx) override
     {
-        u64 function_index = function_table.size();
-        auto& function = function_table.emplace_back(Function{.index = function_index});
-        function_indices.try_emplace(ctx->IDENTIFIER()->getText(), function_index);
-        node_functions.try_emplace(ctx, &function);
-        current_function = &function;
+        current_function_index = function_table.size();
+        function_table.emplace_back(Function{.index = current_function_index});
+        function_indices.try_emplace(ctx->IDENTIFIER()->getText(), current_function_index);
+        node_functions.try_emplace(ctx, current_function_index);
         visitFunction(ctx->function());
         return {};
     }
 
     virtual std::any visitFunctionLit(GOatLANGParser::FunctionLitContext* ctx) override
     {
-        u64 function_index = function_table.size();
-        auto& function = function_table.emplace_back(Function{.index = function_index});
-        node_functions.try_emplace(ctx, &function);
-        current_function = &function;
+        current_function_index = function_table.size();
+        function_table.emplace_back(Function{.index = current_function_index});
+        node_functions.try_emplace(ctx, current_function_index);
         visitFunction(ctx->function());
         return {};
     }
 
     virtual std::any visitFunction(GOatLANGParser::FunctionContext* ctx) override
     {
-        node_functions.try_emplace(ctx, current_function);
+        node_functions.try_emplace(ctx, current_function_index);
         return visitChildren(ctx);
     }
 };
@@ -79,7 +77,6 @@ enum class VariableCategory
 struct Variable
 {
     VariableCategory category;
-    Type* type = nullptr;
     u64 index = 0;
 };
 
@@ -95,15 +92,25 @@ struct VariableFrame
 class VariableAnalyzer : public GOatLANGBaseVisitor
 {
 public:
+    std::vector<Function>& function_table;
+    std::unordered_map<std::string, u64>& function_indices;
+    std::unordered_map<void*, u64>& node_functions;
+    std::unordered_map<std::string, u64>& native_function_indices;
     std::unordered_map<void*, VariableFrame>& variable_frames;
-    std::unordered_map<void*, Function*>& node_functions;
     VariableFrame* current_frame;
 
     VariableAnalyzer(
-        std::unordered_map<void*, VariableFrame>& variable_frames,
-        std::unordered_map<void*, Function*>& node_functions) : variable_frames{variable_frames},
-                                                                node_functions{node_functions},
-                                                                current_frame{nullptr}
+        std::vector<Function>& function_table,
+        std::unordered_map<std::string, u64>& function_indices,
+        std::unordered_map<void*, u64>& node_functions,
+        std::unordered_map<std::string, u64>& native_function_indices,
+        std::unordered_map<void*, VariableFrame>& variable_frames)
+        : function_table{function_table},
+          function_indices{function_indices},
+          node_functions{node_functions},
+          native_function_indices{native_function_indices},
+          variable_frames{variable_frames},
+          current_frame{nullptr}
     {
     }
 
@@ -116,7 +123,6 @@ public:
             current_frame = &it->second;
         }
         this->current_frame = current_frame;
-
         visitSignature(ctx->signature());
         visitBlock(ctx->block());
 
@@ -133,6 +139,11 @@ public:
             }
         }
 
+        u64 function_index = node_functions.at(ctx);
+        Function& function = function_table[function_index];
+        function.capc = current_frame->captures.size();
+        function.argc = current_frame->parameters.size();
+        function.varc = current_frame->variables.size();
         this->current_frame = enclosing_frame;
         if (!enclosing_frame) {
             return {};
@@ -158,10 +169,6 @@ public:
                 enclosing_variable.category = VariableCategory::escaped;
             }
         }
-        Function* function = node_functions.at(ctx);
-        function->capc = current_frame->captures.size();
-        function->argc = current_frame->parameters.size();
-        function->varc = current_frame->variables.size();
         return {};
     }
 
@@ -194,6 +201,9 @@ public:
     virtual std::any visitOperandName(GOatLANGParser::OperandNameContext* ctx) override
     {
         auto name = ctx->IDENTIFIER()->getText();
+        if (function_indices.contains(name) || native_function_indices.contains(name)) {
+            return {};
+        }
         auto& current_variables = current_frame->variables;
         if (current_variables.contains(name)) {
             return {};
@@ -223,14 +233,13 @@ class TypeAnnotator : public GOatLANGBaseVisitor
     {
         std::string name = type.get_name();
         auto it = type_names.find(name);
-        std::cerr << "register type: " << name << std::endl;
-        std::cerr << "#registered types: " << type_names.size() << std::endl;
         if (it != type_names.end()) {
             return it->second;
         }
         u64 type_index = type_table.size();
         auto smart_ptr = std::unique_ptr<Type>(new T{type});
         auto raw_ptr = smart_ptr.get();
+        raw_ptr->index = type_index;
         type_table.push_back(std::move(smart_ptr));
         type_names.try_emplace(name, raw_ptr);
         return raw_ptr;
@@ -238,14 +247,13 @@ class TypeAnnotator : public GOatLANGBaseVisitor
 
     Type* lookup(const std::string& name)
     {
-        std::cerr << "looking for: " << name << std::endl;
         for (auto it = type_environment.rbegin(); it != type_environment.rend(); ++it) {
             auto& frame = *it;
             if (frame.contains(name)) {
                 return frame[name];
             }
         }
-        throw std::runtime_error("lookup: cannot find name");
+        throw std::runtime_error("lookup: cannot find '" + name + "'");
     }
 
     Type* wrap_callable_type(Type* type)
@@ -259,38 +267,31 @@ class TypeAnnotator : public GOatLANGBaseVisitor
 
 public:
     TypeAnnotator(
-        std::unordered_map<std::string, u64>& native_function_indices,
         std::vector<std::unique_ptr<Type>>& type_table,
         std::unordered_map<std::string, Type*>& type_names,
         std::unordered_map<void*, Type*>& node_types,
-        std::unordered_map<void*, VariableFrame>& variable_frames) : type_table{type_table},
-                                                                     type_names{type_names},
-                                                                     node_types{node_types},
-                                                                     variable_frames{variable_frames},
-                                                                     type_environment{},
-                                                                     arg_types{},
-                                                                     function_name{nullptr}
+        std::unordered_map<void*, VariableFrame>& variable_frames)
+        : type_table{type_table},
+          type_names{type_names},
+          node_types{node_types},
+          variable_frames{variable_frames},
+          type_environment{},
+          arg_types{},
+          function_name{nullptr}
     {
-        register_type(IntType{});
-        register_type(FloatType{});
-        register_type(BoolType{});
-        register_type(StringType{});
-        register_type(NativeFunctionType{});
-        register_type(ChannelType{nullptr});
         auto& top_level_frame = type_environment.emplace_back();
-        for (auto& [name, _] : native_function_indices) {
-            std::cerr << "native name: " << name << std::endl;
-            top_level_frame.try_emplace(name, type_names.at("native function"));
-        }
-        std::cerr << "end of constructor" << std::endl;
-        for (auto& [name, _] : type_names) {
-            std::cerr << "registered type name: " << name << std::endl;
-        }
+        auto new_chan_type = register_type(FunctionType{{type_names.at("int")}, type_names.at("chan")});
+        auto sprint_type = register_type(FunctionType{{type_names.at("string")}, nullptr});
+        auto iprint_type = register_type(FunctionType{{type_names.at("int")}, nullptr});
+        auto fprint_type = register_type(FunctionType{{type_names.at("float")}, nullptr});
+        top_level_frame.try_emplace("make", new_chan_type);
+        top_level_frame.try_emplace("sprint", sprint_type);
+        top_level_frame.try_emplace("iprint", iprint_type);
+        top_level_frame.try_emplace("fprint", fprint_type);
     }
 
     std::any visitExpression(GOatLANGParser::ExpressionContext* ctx)
     {
-        std::cerr << "TypeAnnotator::visitExpression" << std::endl;
         return ctx->accept(this);
     }
 
@@ -301,7 +302,6 @@ public:
 
     virtual std::any visitPrimaryExpr_(GOatLANGParser::PrimaryExpr_Context* ctx) override
     {
-        std::cerr << "TypeAnnotator::visitExpression" << std::endl;
         auto primary_expr = ctx->primaryExpr();
         visitPrimaryExpr(primary_expr);
         auto type = node_types.at(primary_expr);
@@ -311,7 +311,6 @@ public:
 
     virtual std::any visitFunctionDecl(GOatLANGParser::FunctionDeclContext* ctx) override
     {
-        std::cerr << "#registered types: " << type_names.size() << std::endl;
         auto name = ctx->IDENTIFIER()->getText();
         function_name = &name;
         auto function = ctx->function();
@@ -329,12 +328,8 @@ public:
         visitSignature(signature);
         auto type = node_types.at(signature);
         if (function_name) {
-            std::cerr << "function name: " << *function_name << std::endl;
-            std::cerr << "type: " << type->get_name() << std::endl;
-            std::cerr << "type env size: " << type_environment.size() << std::endl;
             type_environment.at(env_index).try_emplace(*function_name, type);
         }
-        std::cerr << "#registered types: " << type_names.size() << std::endl;
         node_types.try_emplace(ctx, type);
         visitBlock(ctx->block());
         type_environment.pop_back();
@@ -351,7 +346,6 @@ public:
             result_type = node_types.at(result);
         }
         auto function_type = FunctionType{arg_types, result_type};
-        std::cerr << "#registered types: " << type_names.size() << std::endl;
         auto type = register_type(function_type);
         node_types.try_emplace(ctx, type);
         return {};
@@ -359,7 +353,6 @@ public:
 
     virtual std::any visitParameterDecl(GOatLANGParser::ParameterDeclContext* ctx) override
     {
-        std::cerr << "#registered types: " << type_names.size() << std::endl;
         auto go_type = ctx->goType();
         visitGoType(go_type);
         auto type = wrap_callable_type(node_types.at(go_type));
@@ -444,10 +437,6 @@ public:
     virtual std::any visitTypeName(GOatLANGParser::TypeNameContext* ctx) override
     {
         auto name = ctx->IDENTIFIER()->getText();
-        std::cerr << "type name: " << name << std::endl;
-        for (auto& [name, _] : type_names) {
-            std::cerr << "registered type name: " << name << std::endl;
-        }
         auto type = type_names.at(name);
         node_types.try_emplace(ctx, type);
         return {};
@@ -505,7 +494,7 @@ public:
         visitFunction(function);
         auto function_type = dynamic_cast<FunctionType*>(node_types.at(function));
         if (!function_type) {
-            throw std::runtime_error("functionlit: is not function type");
+            throw std::runtime_error("function lit: is not function type");
         }
         auto& variable_frame = variable_frames.at(function);
         u64 capc = variable_frame.captures.size();
@@ -551,15 +540,9 @@ public:
 
     virtual std::any visitCallExpr(GOatLANGParser::CallExprContext* ctx) override
     {
-        std::cerr << "TypeAnnotator::visitCallExpr" << std::endl;
         auto primary_expr = ctx->primaryExpr();
         visitPrimaryExpr(primary_expr);
-        visitArguments(ctx->arguments());
         auto type = node_types.at(primary_expr);
-        if (auto native_function_type = dynamic_cast<NativeFunctionType*>(type); native_function_type) {
-            node_types.try_emplace(ctx, native_function_type);
-            return {};
-        }
         FunctionType* function_type = nullptr;
         if (auto closure_type = dynamic_cast<ClosureType*>(type); closure_type) {
             function_type = closure_type->function_type;
@@ -569,16 +552,16 @@ public:
             function_type = dynamic_cast<FunctionType*>(type);
         }
         if (!function_type) {
-            throw std::runtime_error("callexpr: operand is not a callable");
+            throw std::runtime_error("call expr: operand is not a callable");
         }
         type = function_type->return_type;
         node_types.try_emplace(ctx, type);
+        visitArguments(ctx->arguments());
         return {};
     }
 
     virtual std::any visitBinaryExpr(GOatLANGParser::BinaryExprContext* ctx) override
     {
-        std::cerr << "TypeAnnotator::visitBinaryExpr" << std::endl;
         auto binary_op = ctx->binary_op->getText();
         auto left = ctx->expression(0);
         auto right = ctx->expression(1);
@@ -590,7 +573,7 @@ public:
         auto right_type = node_types.at(right);
 
         if (left_type != right_type) {
-            throw std::runtime_error("binaryexpr: operands have different types");
+            throw std::runtime_error("binary expr: operands have different types");
         }
 
         Type* type = nullptr;
@@ -645,16 +628,14 @@ public:
         }
 
         auto expression = ctx->expression();
-
         visitExpression(expression);
-
         auto expression_type = node_types.at(expression);
 
         Type* type = nullptr;
         if (unary_op == "<-") {
             auto channel_type = dynamic_cast<ChannelType*>(expression_type);
             if (!channel_type) {
-                throw new std::runtime_error("unaryexpr: operand is not a channel");
+                throw new std::runtime_error("unary expr: operand is not a channel");
             }
             type = channel_type->element_type;
         } else if (unary_op == "&") {
@@ -679,8 +660,7 @@ class FunctionResolver : public GOatLANGBaseVisitor
 {
     std::vector<Function>& function_table;
     std::unordered_map<std::string, u64>& function_indices;
-    std::unordered_map<void*, Function*>& node_functions;
-
+    std::unordered_map<void*, u64>& node_functions;
     std::unordered_map<std::string, u64>& native_function_indices;
     std::unordered_map<void*, u64>& node_native_functions;
 
@@ -688,13 +668,14 @@ public:
     FunctionResolver(
         std::vector<Function>& function_table,
         std::unordered_map<std::string, u64>& function_indices,
-        std::unordered_map<void*, Function*>& node_functions,
+        std::unordered_map<void*, u64>& node_functions,
         std::unordered_map<std::string, u64>& native_function_indices,
-        std::unordered_map<void*, u64>& node_native_functions) : function_table{function_table},
-                                                                 function_indices{function_indices},
-                                                                 node_functions{node_functions},
-                                                                 native_function_indices{native_function_indices},
-                                                                 node_native_functions{node_native_functions}
+        std::unordered_map<void*, u64>& node_native_functions)
+        : function_table{function_table},
+          function_indices{function_indices},
+          node_functions{node_functions},
+          native_function_indices{native_function_indices},
+          node_native_functions{node_native_functions}
     {
     }
 
@@ -733,14 +714,18 @@ public:
         auto name = ctx->IDENTIFIER()->getText();
         if (function_indices.contains(name)) {
             u64 function_index = function_indices.at(name);
-            auto& function = function_table[function_index];
-            node_functions.try_emplace(ctx, &function);
+            node_functions.try_emplace(ctx, function_index);
         } else if (native_function_indices.contains(name)) {
             u64 native_function_index = native_function_indices.at(name);
             node_native_functions.try_emplace(ctx, native_function_index);
         }
         return {};
     }
+};
+
+struct FunctionContext
+{
+    bool has_return_stmt;
 };
 
 class Compiler : public GOatLANGBaseVisitor
@@ -756,8 +741,9 @@ public:
 
     std::vector<Function> function_table;
     std::unordered_map<std::string, u64> function_indices;
-    std::unordered_map<void*, Function*> node_functions;
-    Function* current_function;
+    std::unordered_map<void*, u64> node_functions;
+    Function* current_function = nullptr;
+    FunctionContext* current_function_context = nullptr;
 
     std::vector<NativeFunction> native_function_table;
     std::unordered_map<std::string, u64> native_function_indices;
@@ -783,6 +769,7 @@ public:
         u64 type_index = type_table.size();
         auto smart_ptr = std::unique_ptr<Type>(new T{type});
         auto raw_ptr = smart_ptr.get();
+        raw_ptr->index = type_index;
         type_table.push_back(std::move(smart_ptr));
         type_names.try_emplace(name, raw_ptr);
         return raw_ptr;
@@ -790,6 +777,12 @@ public:
 
     Compiler()
     {
+        register_type(IntType{});
+        register_type(FloatType{});
+        register_type(BoolType{});
+        register_type(StringType{});
+        register_type(ChannelType{nullptr});
+
         native_function_table.push_back(new_thread);
         native_function_table.push_back(new_chan);
         native_function_table.push_back(chan_send);
@@ -816,23 +809,22 @@ public:
 
     virtual std::any visitSourceFile(GOatLANGParser::SourceFileContext* ctx) override
     {
-        std::cerr << "Compiler::visitSourceFile" << std::endl;
         FunctionScanner scanner{function_table, function_indices, node_functions};
         scanner.visitSourceFile(ctx);
-        VariableAnalyzer analyzer{variable_frames, node_functions};
-        analyzer.visitSourceFile(ctx);
-        TypeAnnotator annotator{
+        VariableAnalyzer analyzer{
+            function_table,
+            function_indices,
+            node_functions,
             native_function_indices,
-            type_table, type_names,
-            node_types, variable_frames};
+            variable_frames};
+        analyzer.visitSourceFile(ctx);
+        TypeAnnotator annotator{type_table, type_names, node_types, variable_frames};
         annotator.visitSourceFile(ctx);
-        std::cerr << ctx->topLevelDecl().size() << std::endl;
         return visitChildren(ctx);
     }
 
     virtual std::any visitTopLevelDecl(GOatLANGParser::TopLevelDeclContext* ctx) override
     {
-        std::cerr << "Compiler::visitTopLevelDecl" << std::endl;
         if (auto function_decl = ctx->functionDecl(); function_decl) {
             visitFunctionDecl(function_decl);
         }
@@ -841,7 +833,6 @@ public:
 
     virtual std::any visitFunctionDecl(GOatLANGParser::FunctionDeclContext* ctx) override
     {
-        std::cerr << "Compiler::visitFunctionDecl" << std::endl;
         Function* saved_function = current_function;
         u64 function_index = function_indices.at(ctx->IDENTIFIER()->getText());
         current_function = &function_table[function_index];
@@ -852,11 +843,21 @@ public:
 
     virtual std::any visitFunction(GOatLANGParser::FunctionContext* ctx) override
     {
-        std::cerr << "Compiler::visitFunction" << std::endl;
+        FunctionContext* saved_function_context = current_function_context;
         VariableFrame* saved_variable_frame = variable_frame;
+
+        FunctionContext new_function_context{};
+        current_function_context = &new_function_context;
         variable_frame = &variable_frames.at(ctx);
+
         visitSignature(ctx->signature());
         visitBlock(ctx->block());
+
+        if (!current_function_context->has_return_stmt) {
+            current_function->code.push_back(Instruction{.opcode = Opcode::ret});
+        }
+
+        current_function_context = saved_function_context;
         variable_frame = saved_variable_frame;
         return {};
     }
@@ -890,8 +891,12 @@ public:
 
     virtual std::any visitExpressionStmt(GOatLANGParser::ExpressionStmtContext* ctx) override
     {
-        visitExpression(ctx->expression());
-        current_function->code.push_back(Instruction{.opcode = Opcode::pop});
+        auto expression = ctx->expression();
+        visitExpression(expression);
+        auto type = node_types.at(expression);
+        if (type) {
+            current_function->code.push_back(Instruction{.opcode = Opcode::pop});
+        }
         return {};
     }
 
@@ -904,7 +909,6 @@ public:
         if (variable.category == VariableCategory::bound) {
             code.push_back(Instruction{.opcode = Opcode::load, .index = variable.index});
         } else {
-            // an address to address
             code.push_back(Instruction{.opcode = Opcode::load, .index = variable.index});
             code.push_back(Instruction{.opcode = Opcode::wload, .index = 0});
         }
@@ -941,6 +945,7 @@ public:
     {
         visitExpression(ctx->expression());
         current_function->code.push_back(Instruction{.opcode = Opcode::ret});
+        current_function_context->has_return_stmt = true;
         return {};
     }
 
@@ -1032,6 +1037,11 @@ public:
         return {};
     }
 
+    virtual std::any visitGoType(GOatLANGParser::GoTypeContext* ctx) override
+    {
+        return {};
+    }
+
     virtual std::any visitBasicLit(GOatLANGParser::BasicLitContext* ctx) override
     {
         Word word;
@@ -1053,7 +1063,7 @@ public:
             code.push_back(Instruction{.opcode = Opcode::new_, .index = type->index});
             code.push_back(Instruction{.opcode = Opcode::dup});
             code.push_back(Instruction{.opcode = Opcode::push, .value = bitcast<u64, Word>(string_index)});
-            code.push_back(Instruction{.opcode = Opcode::wload});
+            code.push_back(Instruction{.opcode = Opcode::wstore});
         } else {
         }
         return {};
@@ -1071,7 +1081,7 @@ public:
             code.push_back(Instruction{.opcode = Opcode::new_, .index = closure_type->index});
             code.push_back(Instruction{.opcode = Opcode::dup});
             code.push_back(Instruction{.opcode = Opcode::push, .value = bitcast<u64, Word>(function_index)});
-            code.push_back(Instruction{.opcode = Opcode::wload, .index = 0});
+            code.push_back(Instruction{.opcode = Opcode::wstore, .index = 0});
             return {};
         }
         auto& variable = variable_frame->variables.at(name);
@@ -1099,7 +1109,7 @@ public:
         auto primary_expr = dynamic_cast<GOatLANGParser::PrimaryExpr_Context*>(ctx->expression());
         auto call_expr = dynamic_cast<GOatLANGParser::CallExprContext*>(primary_expr->primaryExpr());
         if (!call_expr) {
-            throw new std::runtime_error("gostmt: expression is not a call expression");
+            throw new std::runtime_error("go stmt: expression is not a call expression");
         }
         auto& code = current_function->code;
         visitArguments(call_expr->arguments());
@@ -1111,7 +1121,7 @@ public:
     virtual std::any visitFunctionLit(GOatLANGParser::FunctionLitContext* ctx) override
     {
         Function* saved_function = current_function;
-        current_function = node_functions.at(ctx);
+        current_function = &function_table[node_functions.at(ctx)];
         u64 function_index = current_function->index;
         auto function_ctx = ctx->function();
         visitFunction(function_ctx);
@@ -1259,8 +1269,8 @@ public:
         }
 
         if (node_functions.contains(primary_expr)) {
-            auto function = node_functions.at(primary_expr);
-            code.push_back(Instruction{.opcode = Opcode::invoke_static, .index = function->index});
+            u64 function_index = node_functions.at(primary_expr);
+            code.push_back(Instruction{.opcode = Opcode::invoke_static, .index = function_index});
             return {};
         }
 

@@ -18,13 +18,13 @@ struct Configuration
     u64 heap_size;
     u64 call_stack_size;
     u64 operand_stack_size;
-    u64 init_function_index;
+    u64 main_function_index;
+    Type* channel_type;
 };
 
 class Runtime
 {
 public:
-    static constexpr u64 channel_type_index = 5;
 
     Runtime() = default;
     Runtime(const Runtime&) = delete;
@@ -106,7 +106,8 @@ public:
             .heap_size = 64 * 1024 * 1024,  // 64 MB
             .call_stack_size = 8 * 1024,    // 8 KB
             .operand_stack_size = 1 * 1024, // 1 KB, 128 values
-            .init_function_index = 0,
+            .main_function_index = 0,
+            .channel_type = nullptr,
         };
     }
 
