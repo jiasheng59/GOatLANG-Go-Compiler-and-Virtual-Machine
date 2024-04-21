@@ -20,6 +20,7 @@ struct Configuration
     u64 operand_stack_size;
     u64 main_function_index;
     Type* channel_type;
+    Type* slice_type;
 };
 
 class Runtime
@@ -108,14 +109,12 @@ public:
             .operand_stack_size = 1 * 1024, // 1 KB, 128 values
             .main_function_index = 0,
             .channel_type = nullptr,
+            .slice_type = nullptr,
         };
     }
 
     std::unordered_set<Thread*> thread_pool;
     std::mutex thread_pool_mutex;
-    // main thread can only terminate
-    // after all spawned thread terminated
-    // this behavior is different compared to Go, but easier to implement
     std::condition_variable termination_condition;
 };
 

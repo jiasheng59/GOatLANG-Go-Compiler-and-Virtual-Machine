@@ -162,14 +162,6 @@ public:
     }
 };
 
-// class NativeFunctionType : public Type
-// {
-// public:
-//     NativeFunctionType() : Type{0} {}
-
-//     virtual std::string get_name() const override { return "native function"; }
-// };
-
 class ClosureType : public Type
 {
 public:
@@ -219,6 +211,24 @@ public:
     virtual std::string get_name() const override
     {
         std::string name = "chan";
+        if (element_type) {
+            name += " ";
+            name += element_type->get_name();
+        }
+        return name;
+    }
+};
+
+class SliceType : public Type
+{
+public:
+    Type* element_type;
+
+    SliceType(Type* element_type) : Type{8}, element_type{element_type} {}
+
+    virtual std::string get_name() const override
+    {
+        std::string name = "[]";
         if (element_type) {
             name += " ";
             name += element_type->get_name();

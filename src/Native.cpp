@@ -138,3 +138,14 @@ void fprint(Runtime& runtime, Thread& thread)
         std::cout << f << std::endl;
     }
 }
+
+void new_slice(Runtime& runtime, Thread& thread)
+{
+    auto& operand_stack = thread.get_operand_stack();
+    auto& heap = runtime.get_heap();
+
+    u64 slice_length = operand_stack.pop<u64>();
+    const auto& slice_type = *runtime.get_configuration().slice_type;
+    u64 slice_address = heap.allocate(slice_type, slice_length);
+    operand_stack.push(slice_address);
+}

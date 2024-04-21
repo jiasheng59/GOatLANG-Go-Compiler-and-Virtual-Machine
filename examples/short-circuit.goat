@@ -1,0 +1,5 @@
+func main() {
+    var danger chan bool = make(chan bool, 1)
+    var shouldNotBlock = 1 == 1 || <-danger
+    sprint("not blocked, nice!")
+}

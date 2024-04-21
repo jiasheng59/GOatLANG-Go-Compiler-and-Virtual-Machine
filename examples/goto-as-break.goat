@@ -1,0 +1,12 @@
+func main() {
+    var limit int = 10
+    var i int = 0
+    for {
+        i = i + 1
+        if i == limit {
+            goto end_for
+        }
+        iprint(i)
+    }
+    end_for:;
+}

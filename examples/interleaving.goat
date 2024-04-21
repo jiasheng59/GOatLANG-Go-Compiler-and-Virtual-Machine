@@ -11,6 +11,10 @@ func main() {
     var done chan int = make(chan int, 3)
     go count(0, 10, done)
     go count(10, 20, done)
+    go count(20, 30, done)
+    go count(30, 40, done)
+    <-done
+    <-done
     <-done
     <-done
 }

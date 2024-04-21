@@ -1,6 +1,7 @@
 #ifndef COMPILER_HPP
 #define COMPILER_HPP
 
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -452,6 +453,36 @@ public:
         return {};
     }
 
+    virtual std::any visitSliceType(GOatLANGParser::SliceTypeContext* ctx)
+    {
+        auto go_type = ctx->goType();
+        visitGoType(go_type);
+        auto element_type = node_types.at(go_type);
+        auto channel_type = SliceType{element_type};
+        auto type = register_type(channel_type);
+        node_types.try_emplace(ctx, type);
+        return {};
+    }
+
+    virtual std::any visitIndexExpr(GOatLANGParser::IndexExprContext* ctx) override
+    {
+        auto primary_expr = ctx->primaryExpr();
+        visitPrimaryExpr(primary_expr);
+        auto slice_type = dynamic_cast<SliceType*>(node_types.at(primary_expr));
+        if (!slice_type) {
+            throw std::runtime_error("index expr: first operand is not a slice type");
+        }
+        auto expression = ctx->expression();
+        visitExpression(expression);
+        auto index_type = dynamic_cast<IntType*>(node_types.at(expression));
+        if (!index_type) {
+            throw std::runtime_error("index expr: second operand is not an integer");
+        }
+        auto type = slice_type->element_type;
+        node_types.try_emplace(ctx, type);
+        return {};
+    }
+
     virtual std::any visitTypeName(GOatLANGParser::TypeNameContext* ctx) override
     {
         auto name = ctx->IDENTIFIER()->getText();
@@ -746,10 +777,17 @@ public:
     }
 };
 
+struct UnresolvedGoto
+{
+    std::string label;
+    u64 index;
+};
+
 struct FunctionContext
 {
     bool has_return_stmt = false;
-    std::unordered_map<std::string, u64> labels;
+    std::unordered_map<std::string, u64> label_locations;
+    std::vector<UnresolvedGoto> unresolved_gotos;
     VariableFrame& variable_frame;
 };
 
@@ -763,6 +801,7 @@ public:
     static constexpr u64 sprint_index = 4;
     static constexpr u64 iprint_index = 5;
     static constexpr u64 fprint_index = 6;
+    static constexpr u64 new_slice_index = 7;
 
     std::vector<Function> function_table;
     std::unordered_map<std::string, u64> function_indices;
@@ -805,6 +844,7 @@ public:
         register_type(BoolType{});
         register_type(StringType{});
         register_type(ChannelType{nullptr});
+        register_type(SliceType{nullptr});
 
         native_function_table.push_back(new_thread);
         native_function_table.push_back(new_chan);
@@ -813,11 +853,13 @@ public:
         native_function_table.push_back(sprint);
         native_function_table.push_back(iprint);
         native_function_table.push_back(fprint);
+        native_function_table.push_back(new_slice);
 
         native_function_indices.try_emplace("make", new_chan_index);
         native_function_indices.try_emplace("sprint", sprint_index);
         native_function_indices.try_emplace("iprint", iprint_index);
         native_function_indices.try_emplace("fprint", fprint_index);
+        native_function_indices.try_emplace("new", new_slice_index);
     }
 
     std::any visitExpression(GOatLANGParser::ExpressionContext* ctx)
@@ -876,8 +918,12 @@ public:
         visitSignature(ctx->signature());
         visitBlock(ctx->block());
 
-        if (!current_function_context->has_return_stmt) {
-            current_function->code.push_back(Instruction{.opcode = Opcode::ret});
+        auto& code = current_function->code;
+        if (!new_function_context.has_return_stmt) {
+            code.push_back(Instruction{.opcode = Opcode::ret});
+        }
+        for (const auto& goto_ : new_function_context.unresolved_gotos) {
+            code[goto_.index].index = new_function_context.label_locations.at(goto_.label);
         }
 
         current_function_context = saved_function_context;
@@ -1035,20 +1081,21 @@ public:
         return {};
     }
 
-    virtual std::any visitLabeledStmt(GOatLANGParser::LabeledStmtContext* ctx) override
+    virtual std::any visitGotoStmt(GOatLANGParser::GotoStmtContext* ctx) override
     {
-        current_function_context->labels.try_emplace(
+        current_function_context->unresolved_gotos.emplace_back(
             ctx->IDENTIFIER()->getText(),
             current_function->code.size());
-        visitStatement(ctx->statement());
+        current_function->code.push_back(Instruction{.opcode = Opcode::goto_});
         return {};
     }
 
-    virtual std::any visitGotoStmt(GOatLANGParser::GotoStmtContext* ctx) override
+    virtual std::any visitLabeledStmt(GOatLANGParser::LabeledStmtContext* ctx) override
     {
-        u64 index = current_function_context->labels.at(ctx->IDENTIFIER()->getText());
-        current_function->code.push_back(Instruction{.opcode = Opcode::goto_, .index = index});
-        return {};
+        current_function_context->label_locations.try_emplace(
+            ctx->IDENTIFIER()->getText(),
+            current_function->code.size());
+        return visitChildren(ctx);
     }
 
     virtual std::any visitParameterDecl(GOatLANGParser::ParameterDeclContext* ctx) override
