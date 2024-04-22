@@ -1,5 +1,13 @@
 # GOatLANG: Go-Compiler-and-Virtual-Machine
 
+## Instruction to run the test case
+1. `git clone https://github.com/jiasheng59/GOatLANG-Go-Compiler-and-Virtual-Machine.git`
+1. `cd GOatLANG-Go-Compiler-and-Virtual-Machine`
+1. `cd bin`
+1. `./GOatLANG ../examples/<testcase.goat>`
+
+Please find the example test cases under `examples/`
+
 ## Instruction to build the system
 We simplify the instruction to build the system to the following:
 1. `git clone https://github.com/jiasheng59/GOatLANG-Go-Compiler-and-Virtual-Machine.git`
