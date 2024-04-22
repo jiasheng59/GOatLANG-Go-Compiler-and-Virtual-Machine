@@ -453,7 +453,7 @@ public:
         return {};
     }
 
-    virtual std::any visitSliceType(GOatLANGParser::SliceTypeContext* ctx)
+    virtual std::any visitSliceType(GOatLANGParser::SliceTypeContext* ctx) override
     {
         auto go_type = ctx->goType();
         visitGoType(go_type);
@@ -1083,9 +1083,10 @@ public:
 
     virtual std::any visitGotoStmt(GOatLANGParser::GotoStmtContext* ctx) override
     {
-        current_function_context->unresolved_gotos.emplace_back(
-            ctx->IDENTIFIER()->getText(),
-            current_function->code.size());
+        current_function_context->unresolved_gotos.emplace_back(UnresolvedGoto{
+            .label = ctx->IDENTIFIER()->getText(),
+            .index = current_function->code.size(),
+        });
         current_function->code.push_back(Instruction{.opcode = Opcode::goto_});
         return {};
     }
@@ -1163,6 +1164,7 @@ public:
             u64 function_index = function_indices.at(name);
             auto callable_type = register_type(CallableType{function_type});
             auto closure_type = register_type(ClosureType{function_type, 0});
+            (void) callable_type;
             code.push_back(Instruction{.opcode = Opcode::new_, .index = closure_type->index});
             code.push_back(Instruction{.opcode = Opcode::dup});
             code.push_back(Instruction{.opcode = Opcode::push, .value = bitcast<u64, Word>(function_index)});

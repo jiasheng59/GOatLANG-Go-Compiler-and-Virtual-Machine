@@ -16,7 +16,6 @@ void new_thread(Runtime& runtime, Thread& thread)
     //     std::lock_guard{io_mutex};
     //     std::cerr << "new thread!" << std::endl;
     // }
-    auto& cur_call_stack = thread.get_call_stack();
     auto& cur_operand_stack = thread.get_operand_stack();
 
     Thread new_thread{runtime};
@@ -123,6 +122,7 @@ void sprint(Runtime& runtime, Thread& thread)
 
 void iprint(Runtime& runtime, Thread& thread)
 {
+    (void) runtime;
     i64 i = thread.get_operand_stack().pop<i64>();
     {
         std::lock_guard{io_mutex};
@@ -132,6 +132,7 @@ void iprint(Runtime& runtime, Thread& thread)
 
 void fprint(Runtime& runtime, Thread& thread)
 {
+    (void) runtime;
     f64 f = thread.get_operand_stack().pop<f64>();
     {
         std::lock_guard{io_mutex};

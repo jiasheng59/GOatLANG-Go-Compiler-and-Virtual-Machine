@@ -17,8 +17,8 @@ public:
 
     OperandStack(u64 stack_size) : managed_memory{std::make_unique<std::byte[]>(stack_size)},
                                    memory{managed_memory.get()},
-                                   top{0},
-                                   size{stack_size}
+                                   size{stack_size},
+                                   top{0}
     {
     }
 

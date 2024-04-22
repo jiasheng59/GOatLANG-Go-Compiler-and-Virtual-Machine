@@ -54,7 +54,7 @@ set(GOatLANG_SRC
     ${GOatLANG_GENERATED_SRC}
 )
 
-set(CXX_DEBUG_FLAGS "-g")
+set(CXX_DEBUG_FLAGS "-g -Wall -Wpedantic -Wextra -Wno-unused-parameter -Wno-missing-field-initializers")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_DEBUG_FLAGS}")
 
 add_executable(GOatLANG ${GOatLANG_SRC})
