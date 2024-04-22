@@ -8,9 +8,14 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Java COMPONENTS Runtime REQUIRED)
 find_package(Threads REQUIRED)
 
+set(ANTLR_LIB_DEFAULT_PATH "/usr/local/lib/libantlr4-runtime.a")
+
 if(NOT ANTLR_LIB)
-    set(ANTLR_LIB /usr/local/lib/libantlr4-runtime.a)
-    # set(ANTLR_LIB ${PROJECT_SOURCE_DIR}/libantlr4-runtime.a)
+    if (EXISTS ${ANTLR_LIB_DEFAULT_PATH})
+        set(ANTLR_LIB ${ANTLR_LIB_DEFAULT_PATH})
+    else()
+        set(ANTLR_LIB ${PROJECT_SOURCE_DIR}/libantlr4-runtime.a)
+    endif()
 endif()
 
 set(GOatLANG_GENERATED_SRC
